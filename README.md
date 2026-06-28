@@ -231,6 +231,7 @@ Usage: `tsx scripts/verify-audit-export.ts <file>`
 ```bash
 npm install
 cp .env.example .env.local
+npm run check:production-readiness
 npm run dev
 ```
 
@@ -316,6 +317,7 @@ npm run start
 npm run lint
 npm test
 npm run test:watch
+npm run check:production-readiness
 npm run demo:scenarios
 npm run db:migrate
 ```
@@ -335,6 +337,25 @@ Run the standalone demo runner (prints expected vs actual for every seeded scena
 ```bash
 npm run demo:scenarios
 ```
+
+### Production Readiness Check
+
+Run this before deploying or enabling protected payment flows:
+
+```bash
+npm run check:production-readiness
+```
+
+The readiness check exits non-zero when production configuration is unsafe. It currently validates:
+
+- `STELLAR_HORIZON_URL`
+- `STELLAR_NETWORK_PASSPHRASE`
+- `FORTEXA_AUTH_SECRET`
+- `FORTEXA_OPERATOR_WALLETS`
+- `DATABASE_URL` or `FORTEXA_STORE_DIR`
+- `REDIS_URL` or `FORTEXA_SHARED_STATE_PATH`
+
+It rejects testnet/demo defaults, missing explicit storage, and mismatched Stellar network settings without printing secret values.
 
 ---
 

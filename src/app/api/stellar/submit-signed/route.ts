@@ -7,6 +7,7 @@ import { getRequestLogContext, logError, logInfo, logWarn } from "@/lib/observab
 import { recordStellarSubmitResult } from "@/lib/observability/metrics";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { decodeSignedXdrSourceAccount, submitSignedTransactionXdr } from "@/lib/stellar/client";
+import { getStellarExplorerTransactionUrl } from "@/lib/stellar/network";
 import {
   getIdempotencyRecord,
   hashSignedXdr,
@@ -47,10 +48,6 @@ const HORIZON_OP_ERRORS: Record<string, HorizonErrorContext> = {
     nextStep: "Fund the source account with enough XLM to cover the payment and reserves.",
   },
 };
-
-function getTestnetExplorerUrl(hash: string) {
-  return `https://stellar.expert/explorer/testnet/tx/${hash}`;
-}
 
 export function formatSubmitError(error: unknown) {
   if (!(error instanceof Error)) {
@@ -287,7 +284,7 @@ export async function POST(request: NextRequest) {
         mode: "real",
         ...submitted,
       },
-      explorerUrl: getTestnetExplorerUrl(submitted.hash),
+      explorerUrl: getStellarExplorerTransactionUrl(submitted.hash),
     };
 
     if (idempotencyKey && xdrHash) {
