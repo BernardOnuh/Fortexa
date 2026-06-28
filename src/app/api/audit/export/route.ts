@@ -163,10 +163,16 @@ export async function GET(request: NextRequest) {
       previousHash: entry.previousHash ?? "",
     }));
 
+<<<<<<< HEAD
       logInfo("Audit export success (mine/csv)", { ...context, userId: auth.session.userId });
     return new NextResponse(toCsv(redactAuditExportPayload(rows)), {
 
 
+=======
+    logInfo("Audit export success (mine/csv)", { ...context, userId: auth.session.userId });
+    const filenameMine = `fortexa-audit-mine-${new Date().toISOString().slice(0, 10)}.csv`;
+    return new NextResponse(toCsv(redactAuditExportPayload(rows)), {
+>>>>>>> 90a1c31 (fixes #50 Audit log redaction for exported operator reports)
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",

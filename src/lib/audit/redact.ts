@@ -6,9 +6,7 @@ export type RedactionReason =
 
 export type RedactedValue = { $redacted: RedactionReason };
 
-const DEFAULT_REDACTED_PLACEHOLDER: RedactedValue = {
-  $redacted: "sensitive_field",
-};
+const DEFAULT_REDACTED_PLACEHOLDER: RedactedValue = { $redacted: "sensitive_field" };
 
 type RedactionConfig = {
   /** Explicit sensitive keys (case-insensitive, compared to the key only). */
@@ -22,15 +20,17 @@ type RedactionConfig = {
 };
 
 const ENV_SENSITIVE_KEYS: string[] = (
-  (globalThis as unknown as {
-    process?: { env?: Record<string, string | undefined> };
-  }).process?.env?.FORTEXA_AUDIT_EXPORT_SENSITIVE_KEYS ?? ""
+  (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.FORTEXA_AUDIT_EXPORT_SENSITIVE_KEYS ?? ""
 )
   .split(",")
   .map((s: string) => s.trim())
   .filter((s: string) => Boolean(s));
 
+
+
 const DEFAULT_CONFIG: RedactionConfig = {
+
   sensitiveKeys: [
     // session-ish
     "session",
@@ -79,7 +79,7 @@ const DEFAULT_CONFIG: RedactionConfig = {
     // XDR strings often look like base64-ish blocks with length and symbols.
     // Also redact explicit `XDR:` prefixes.
     /^XDR:\s*/i,
-    // A loose heuristic: contains lots of base64-ish chars.
+    // A loose heuristic: contains 'AAAA'/'ABCD'-like and lots of characters.
     /[A-Za-z0-9+/]{20,}={0,2}/,
     // If value indicates it is signed.
     /signed[_\s-]?xdr/i,
@@ -108,16 +108,14 @@ function looksLikeSignedXdrValue(value: string): boolean {
   if (/signed[_\s-]?xdr/i.test(value)) return true;
   if (/signed[_\s-]?tx/i.test(value)) return true;
 
-  // Heuristic: long-ish base64-ish blocks.
+  // Heuristic: if it contains "AAAA" and is long-ish and base64-ish.
+  // (Many XDR encodings are base64; this matches typical substrings.)
   if (value.length >= 50 && /[A-Za-z0-9+/]{20,}={0,2}/.test(value)) return true;
 
   return false;
 }
 
-function classifyKeyAndValue(
-  key: string,
-  value: unknown,
-): RedactionReason | null {
+function classifyKeyAndValue(key: string, value: unknown): RedactionReason | null {
   const nk = normalizeKey(key);
 
   const sensitiveKeys = [
@@ -147,9 +145,7 @@ function classifyKeyAndValue(
     // Value-based redaction
     for (const vre of DEFAULT_CONFIG.sensitiveValuePatterns ?? []) {
       if (vre.test(s)) {
-        if (/signed[_\s-]?xdr/i.test(s) || looksLikeSignedXdrValue(s)) {
-          return "signed_xdr";
-        }
+        if (/signed[_\s-]?xdr/i.test(s) || looksLikeSignedXdrValue(s)) return "signed_xdr";
         if (/jwt|bearer|token/i.test(s)) return "token";
       }
     }
@@ -160,6 +156,7 @@ function classifyKeyAndValue(
   }
 
   // Sometimes signed material sits under generic keys.
+  // If the value strongly resembles a signed XDR, redact regardless of key.
   if (typeof value === "string" && looksLikeSignedXdrValue(value)) {
     return "signed_xdr";
   }
@@ -177,7 +174,7 @@ function classifyKeyAndValue(
  */
 export function redactAuditExportPayload<T>(
   input: T,
-  config?: RedactionConfig,
+  config?: RedactionConfig
 ): T {
   const merged: RedactionConfig = {
     ...DEFAULT_CONFIG,
@@ -187,10 +184,7 @@ export function redactAuditExportPayload<T>(
       ...(config?.sensitiveKeys ?? []),
       ...ENV_SENSITIVE_KEYS,
     ],
-    sensitiveKeyPatterns: [
-      ...(DEFAULT_CONFIG.sensitiveKeyPatterns ?? []),
-      ...(config?.sensitiveKeyPatterns ?? []),
-    ],
+    sensitiveKeyPatterns: [...(DEFAULT_CONFIG.sensitiveKeyPatterns ?? []), ...(config?.sensitiveKeyPatterns ?? [])],
     sensitiveValuePatterns: [
       ...(DEFAULT_CONFIG.sensitiveValuePatterns ?? []),
       ...(config?.sensitiveValuePatterns ?? []),
@@ -201,10 +195,13 @@ export function redactAuditExportPayload<T>(
   const seen = new WeakSet<object>();
 
   function walk(value: unknown, depth: number): unknown {
-    if (depth > (merged.maxDepth ?? 25)) return value;
+    if (depth > (merged.maxDepth ?? 25)) {
+      return value;
+    }
 
     if (typeof value === "string") {
       // Value-only classification for signed xdr
+
       if (looksLikeSignedXdrValue(value)) {
         return placeholderForReason("signed_xdr");
       }
@@ -216,12 +213,15 @@ export function redactAuditExportPayload<T>(
     }
 
     if (isObjectLike(value)) {
-      if (seen.has(value)) return value;
+      if (seen.has(value)) {
+        return value;
+      }
       seen.add(value);
 
       const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(value)) {
         // Preserve Horizon result codes etc. by explicitly not redacting common safe keys.
+        // (We rely primarily on key/value classification; these are guardrails.)
         const safeKeyAllowlist = new Set([
           "horizonResultCode",
           "result",
@@ -243,9 +243,12 @@ export function redactAuditExportPayload<T>(
         }
 
         const reason = classifyKeyAndValue(k, v);
-        out[k] = reason ? placeholderForReason(reason) : walk(v, depth + 1);
+        if (reason) {
+          out[k] = placeholderForReason(reason);
+        } else {
+          out[k] = walk(v, depth + 1);
+        }
       }
-
       return out;
     }
 
@@ -263,7 +266,7 @@ export function redactAuditExportEntries<T>(entries: T[]): T[] {
 }
 
 export function redactAuditExportEntriesByUser<T>(
-  entriesByUser: Record<string, T[]>,
+  entriesByUser: Record<string, T[]>
 ): Record<string, T[]> {
   const out: Record<string, T[]> = {};
   for (const [userId, entries] of Object.entries(entriesByUser)) {
@@ -273,3 +276,4 @@ export function redactAuditExportEntriesByUser<T>(
 }
 
 export const REDACTION_PLACEHOLDER = DEFAULT_REDACTED_PLACEHOLDER;
+
