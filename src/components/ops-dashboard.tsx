@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock3, Database, HelpCircle, Shield, ShieldOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Database, HelpCircle, Shield, ShieldOff } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,30 +75,6 @@ function formatShortTime(iso: string) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(
     date.getSeconds()
   ).padStart(2, "0")}`;
-}
-
-function DependencyBadge({ name, status }: { name: string; status: string }) {
-  const isHealthy = status === "healthy";
-  const isDegraded = status === "degraded";
-
-  const colorClass = isHealthy
-    ? "bg-emerald-900/30 text-emerald-300 border-emerald-800"
-    : isDegraded
-    ? "bg-amber-900/30 text-amber-300 border-amber-800"
-    : "bg-neutral-900/30 text-neutral-400 border-neutral-800";
-
-  return (
-    <div className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium ${colorClass}`}>
-      {isHealthy ? (
-        <CheckCircle2 aria-hidden="true" className="h-3 w-3" />
-      ) : isDegraded ? (
-        <AlertTriangle aria-hidden="true" className="h-3 w-3" />
-      ) : (
-        <HelpCircle aria-hidden="true" className="h-3 w-3" />
-      )}
-      {name}
-    </div>
-  );
 }
 
 export function OpsDashboard() {
