@@ -1,7 +1,5 @@
 # Fortexa
 
-
-
 <p align="center">
   <img src="public/fortexa-logo.jpeg" alt="Fortexa logo" width="200" />
 </p>
@@ -148,8 +146,6 @@ Before committing a policy change, operators can dry-run the unsaved draft from 
 
 Simulation is strictly read-only: it never saves the policy and never consumes usage. Saving still happens only through `POST /api/policy`. See `src/lib/decision/simulate.ts` and `POST /api/policy/simulate`.
 
-> **Reporting API failures:** Include the `x-request-id` header value from the response (or the `requestId` field from server-side logs) when filing a bug report. See [docs/observability.md](docs/observability.md#reporting-api-failures) for details.
-
 ### 6.2 Signed XDR Payment Path
 
 1. Evaluate action in `/console` with a **payment quote** (`paymentQuoteInput`: destination, optional memo, network). On `APPROVE`/`WARN`, Fortexa stores an immutable `paymentQuote` on the audit entry.
@@ -186,10 +182,6 @@ Additional behavior:
 - Decisions are appended to audit store at evaluation time.
 - `/activity` reads entries by authenticated session user id.
 - Export endpoint supports `mine` and `all` scopes in JSON/CSV.
-
-### Timestamp timezone
-
-All audit timestamps are recorded and exported in **UTC** (ISO 8601 format with a `Z` suffix, e.g. `2025-06-01T12:00:00.000Z`). This applies to both JSON and CSV exports — the `timestamp` column in CSV output carries the raw UTC string with no local-time conversion. The `from`/`to` query parameters on the export endpoint are also compared against these UTC timestamps, so any filter dates should be expressed in UTC.
 
 ### Hash chain integrity
 
@@ -268,24 +260,67 @@ To clean up local developer state safely, you can use the local demo reset utili
 
 ## 9) 🌍 Environment Variables
 
-All configuration is documented in [`.env.example`](.env.example). Copy it to `.env.local` and fill in the values you need:
+Fortexa reads its runtime configuration from environment variables. Use the table below as a quick reference when setting up locally; the code block after it is the actual `.env.example` you copy into `.env.local`.
+
+| Variable | Purpose | Required? | Safe local default |
+| --- | --- | --- | --- |
+| `FORTEXA_AUTH_SECRET` | HMAC key used to sign the `fortexa_session` cookie and verify wallet-login challenges. Without it, login cannot succeed. | **Required** | _none — generate your own, e.g._ `openssl rand -hex 32` |
+| `STELLAR_HORIZON_URL` | Stellar Horizon endpoint used for balance, fee, and submit calls. | Optional | `https://horizon-testnet.stellar.org` |
+| `STELLAR_NETWORK_PASSPHRASE` | Network passphrase Horizon URLs resolve against (must agree with `STELLAR_HORIZON_URL`). | Optional | _unset — falls back to `Networks.TESTNET` from `@stellar/stellar-sdk`_ |
+| `DATABASE_URL` | Postgres connection string for the DB-backed stores (audit, policy, wallets, idempotency). | Optional | _unset — falls back to the file store at `FORTEXA_STORE_DIR`_ |
+| `DATABASE_SSL` | Enables TLS when connecting to Postgres. | Optional | `false` |
+| `FORTEXA_STORE_DIR` | Directory used by the file-store fallback for all persistence. | Optional | `./.fortexa` locally · `/tmp/fortexa` on Vercel |
+| `FORTEXA_SHARED_STATE_PATH` | File path for shared lockout/rate-limit state (must be writable on multi-instance deployments). | Optional | `FORTEXA_STORE_DIR/shared-security-state.json` locally · `/tmp/fortexa/...` on Vercel |
+| `REDIS_URL` | Redis URL for distributed lockout/rate-limit across instances. | Optional | _unset — file-based state is used_ |
+| `GROQ_API_KEY` | API key for Groq (used by `POST /api/agent/plan`). | Optional¹ | _unset — every flow except agent plan works without it_ |
+| `GROQ_MODEL` | Groq model identifier used by agent plan. | Optional | `llama-3.3-70b-versatile` |
+| `FORTEXA_OPERATOR_WALLETS` | Comma-separated public keys (`G…`) granted the `operator` role. | Optional | _unset — when both allowlists are empty, every authenticated wallet is treated as `operator` (recommended only for local/dev)_ |
+| `FORTEXA_VIEWER_WALLETS` | Comma-separated public keys (`G…`) granted the `viewer` role. | Optional | _unset (no viewer)_ |
+| `FORTEXA_AUTH_CHALLENGE_TTL_SECONDS` | Lifetime of wallet-login challenges. | Optional | `300` |
+| `FORTEXA_AUTH_MAX_ATTEMPTS` | Failed login attempts before lockout. | Optional | `5` |
+| `FORTEXA_AUTH_LOCK_MINUTES` | Lockout window in minutes. | Optional | `10` |
+| `FORTEXA_JSON_BODY_MAX_BYTES` | Maximum request body size for JSON `POST` routes (returns `413` above this). | Optional | `65536` (64 KiB) |
+| `FORTEXA_IDEMPOTENCY_RETENTION_DAYS` | Retention window in days for submit-idempotency records. | Optional | `7` |
+| `FORTEXA_BLOCKLIST_URL` | External dynamic threat-intel blocklist URL (JSON array or `#`-commented text; 5-min in-memory cache). | Optional | _unset — analyzer uses the built-in blocklist only_ |
+| `FORTEXA_ALLOW_LOCAL_RESET` | Must be set to `true` (together with `npm run demo:reset -- --yes`) to wipe local demo state. Acts as a safety gate. | Optional (gate) | _unset — `demo:reset` runs as a dry-run only_ |
+| `NEXT_PUBLIC_STELLAR_DESTINATION` | Default destination prefill shown in `/console` for the demo payment quote. | Optional | _empty_ |
+
+¹ `GROQ_API_KEY` is only required if you call `POST /api/agent/plan`; the decision, policy, audit, and payment flows run without it.
+
+> **Security:** never commit real secrets. Keep dev values in `.env.local` (gitignored), leave placeholders in `.env.example`, and use your deployment platform's secret manager for production values.
+
+Reference (`.env.example`):
 
 ```bash
-cp .env.example .env.local
+STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
+# Optional; defaults to testnet passphrase. Must agree with STELLAR_HORIZON_URL.
+STELLAR_NETWORK_PASSPHRASE=
+
+DATABASE_URL=
+DATABASE_SSL=false
+
+FORTEXA_STORE_DIR=
+
+FORTEXA_SHARED_STATE_PATH=
+REDIS_URL=
+
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.3-70b-versatile
+
+FORTEXA_AUTH_SECRET=
+FORTEXA_OPERATOR_WALLETS=
+FORTEXA_VIEWER_WALLETS=
+FORTEXA_AUTH_MAX_ATTEMPTS=5
+FORTEXA_AUTH_LOCK_MINUTES=10
+FORTEXA_JSON_BODY_MAX_BYTES=65536
+
+NEXT_PUBLIC_STELLAR_DESTINATION=
+
+# Optional external blocklist URL for dynamic threat-intel
+# Accepts JSON array of domains or plain-text (one domain per line, # comments ignored)
+# Cached in-memory for 5 minutes; feed failures fall back silently
+FORTEXA_BLOCKLIST_URL=
 ```
-
-The file covers every variable used by the app, organized into:
-
-| Category | Variables |
-|---|---|
-| **Stellar Network** | `STELLAR_HORIZON_URL`, `STELLAR_NETWORK_PASSPHRASE`, `NEXT_PUBLIC_STELLAR_DESTINATION` |
-| **Auth** | `FORTEXA_AUTH_SECRET`, `FORTEXA_OPERATOR_WALLETS`, `FORTEXA_VIEWER_WALLETS`, `FORTEXA_AUTH_CHALLENGE_TTL_SECONDS`, `FORTEXA_AUTH_MAX_ATTEMPTS`, `FORTEXA_AUTH_LOCK_MINUTES` |
-| **Storage** | `DATABASE_URL`, `DATABASE_SSL`, `FORTEXA_STORE_DIR` |
-| **Shared State** | `FORTEXA_SHARED_STATE_PATH`, `REDIS_URL` |
-| **Idempotency** | `FORTEXA_IDEMPOTENCY_RETENTION_DAYS` |
-| **Optional Integrations** | `GROQ_API_KEY`, `GROQ_MODEL`, `FORTEXA_BLOCKLIST_URL` |
-| **Request Handling** | `FORTEXA_JSON_BODY_MAX_BYTES` |
-| **Dev Utilities** | `FORTEXA_ALLOW_LOCAL_RESET` |
 
 ---
 
@@ -362,8 +397,6 @@ JSON `POST` routes that accept request bodies enforce a shared size limit before
 - `POST /api/stellar/submit-signed` (supports `Idempotency-Key` header/body for safe UI retries)
 - `POST /api/stellar/pay` (legacy disabled)
 - `POST /api/stellar/fund` (removed behavior, returns `410`)
-
-> **Note:** Newly created Stellar testnet wallets start with zero balance. Unfunded wallets cannot perform balance queries, payment flows, or other wallet operations. Before testing, fund the wallet using the Stellar testnet friendbot (`GET https://friendbot.stellar.org?addr=YOUR_PUBLIC_KEY`) or the in‑app `/api/stellar/setup` endpoint. This applies only to the testnet; production wallets are funded via standard Stellar distribution channels.
 
 ---
 
