@@ -172,7 +172,7 @@ export function OpsDashboard() {
           return;
         }
         setIntegrity(integrityPayload);
-      } catch (loadError) {
+      } catch {
         if (!cancelled) {
           setIntegrity(null);
         }
