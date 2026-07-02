@@ -211,6 +211,9 @@ export function OpsDashboard() {
             <div className="text-sm text-[hsl(var(--muted-foreground))]">
               {health?.timestamp ?? "-"}
             </div>
+            <div className="text-sm text-[hsl(var(--muted-foreground))]">
+              Refreshed: {lastRefreshed ? formatShortTime(lastRefreshed) : "-"}
+            </div>
             {health?.dependencies ? (
               <div className="flex flex-wrap gap-2">
                 <DependencyBadge name="Storage" status={health.dependencies.storage} />
