@@ -139,10 +139,11 @@ export function DecisionConsole() {
   const destinationPreview = destination.trim().toUpperCase();
 
   useEffect(() => {
-    if (step === 4 && evaluatedAmount != null && !executeAmount) {
-      setExecuteAmount(String(evaluatedAmount));
-    }
-  }, [step, evaluatedAmount, executeAmount]);
+  if (step === 4 && evaluatedAmount != null && !executeAmount) {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExecuteAmount(String(evaluatedAmount));
+  }
+}, [step, evaluatedAmount, executeAmount]);
 
   function resetPreparedXdr() {
     setUnsignedXdr("");

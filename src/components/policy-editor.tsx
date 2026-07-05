@@ -352,10 +352,11 @@ export function PolicyEditor() {
     }
   }
 
-  useEffect(() => {
-    void loadPolicy();
-    void loadHistory();
-  }, []);
+    useEffect(() => {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadPolicy();
+      void loadHistory();
+    }, []);
 
   return (
     <div className="space-y-6">

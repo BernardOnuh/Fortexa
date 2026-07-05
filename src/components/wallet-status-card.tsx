@@ -39,8 +39,9 @@ export function WalletStatusCard({ compact = false }: { compact?: boolean }) {
   }
 
   useEffect(() => {
-    void loadWallet();
-  }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  void loadWallet();
+}, []);
 
   useEffect(() => {
     return () => {

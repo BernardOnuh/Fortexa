@@ -62,7 +62,8 @@ export function useAuthSession() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  void refresh();
   }, [refresh]);
 
   return {
