@@ -231,7 +231,6 @@ Usage: `tsx scripts/verify-audit-export.ts <file>`
 ```bash
 npm install
 cp .env.example .env.local
-npm run check:production-readiness
 npm run dev
 ```
 
@@ -258,6 +257,8 @@ To clean up local developer state safely, you can use the local demo reset utili
   FORTEXA_ALLOW_LOCAL_RESET=true npm run demo:reset -- --yes
   ```
   *(or `FORTEXA_ALLOW_LOCAL_RESET=true npx tsx scripts/reset-local-demo-state.ts --yes`)*
+
+`.env.example` is intentionally development-oriented and uses Stellar testnet defaults, so it will not pass the production readiness check until you replace the demo values with production configuration.
 
 ---
 
@@ -340,13 +341,13 @@ npm run demo:scenarios
 
 ### Production Readiness Check
 
-Run this before deploying or enabling protected payment flows:
+Run this before every production deployment and before enabling protected payment flows:
 
 ```bash
 npm run check:production-readiness
 ```
 
-The readiness check exits non-zero when production configuration is unsafe. It currently validates:
+The readiness check validates:
 
 - `STELLAR_HORIZON_URL`
 - `STELLAR_NETWORK_PASSPHRASE`
@@ -355,7 +356,30 @@ The readiness check exits non-zero when production configuration is unsafe. It c
 - `DATABASE_URL` or `FORTEXA_STORE_DIR`
 - `REDIS_URL` or `FORTEXA_SHARED_STATE_PATH`
 
-It rejects testnet/demo defaults, missing explicit storage, and mismatched Stellar network settings without printing secret values.
+It also rejects unsafe demo/default values such as testnet Horizon endpoints, mismatched Stellar network settings, and local demo file-store paths without printing secret values.
+
+Expected behavior:
+
+- Success: prints `Fortexa production readiness check passed.` and exits `0`.
+- Failure: prints `Fortexa production readiness check failed:` followed by the invalid setting and remediation for each issue, then exits non-zero.
+
+Example success:
+
+```bash
+$ npm run check:production-readiness
+Fortexa production readiness check passed.
+```
+
+Example failure:
+
+```bash
+$ npm run check:production-readiness
+Fortexa production readiness check failed:
+- STELLAR_NETWORK_PASSPHRASE: Testnet passphrase is still configured. Set STELLAR_NETWORK_PASSPHRASE to the Stellar public network passphrase before deployment.
+- DATABASE_URL or FORTEXA_STORE_DIR: No persistent storage backend is explicitly configured. Configure DATABASE_URL for Postgres or set FORTEXA_STORE_DIR to a durable production storage path.
+```
+
+In `NODE_ENV=production`, Fortexa also applies this check before `/api/stellar/build-payment` and `/api/stellar/submit-signed` execute. If configuration is unsafe, those routes return `503` with a non-sensitive issue list and the remediation command instead of attempting the payment flow.
 
 ---
 

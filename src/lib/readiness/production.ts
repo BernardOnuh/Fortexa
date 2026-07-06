@@ -4,7 +4,6 @@ import {
   STELLAR_PUBLIC_NETWORK_PASSPHRASE,
   STELLAR_TESTNET_NETWORK_PASSPHRASE,
   getStellarHorizonUrl,
-  getStellarNetworkPassphrase,
   inferStellarNetworkFromHorizonUrl,
 } from "@/lib/stellar/network";
 
@@ -218,6 +217,24 @@ export function checkProductionReadiness(
     ok: issues.length === 0,
     issues,
   };
+}
+
+export function shouldEnforceProductionReadiness(
+  env: NodeJS.ProcessEnv = process.env
+) {
+  return env.NODE_ENV === "production";
+}
+
+export function getProtectedPaymentFlowReadinessReport(
+  env: NodeJS.ProcessEnv = process.env,
+  options: ProductionReadinessOptions = {}
+) {
+  if (!shouldEnforceProductionReadiness(env)) {
+    return null;
+  }
+
+  const report = checkProductionReadiness(env, options);
+  return report.ok ? null : report;
 }
 
 export function formatProductionReadinessReport(

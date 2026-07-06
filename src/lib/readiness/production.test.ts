@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkProductionReadiness,
   formatProductionReadinessReport,
+  getProtectedPaymentFlowReadinessReport,
 } from "@/lib/readiness/production";
 
 const VALID_OPERATOR_WALLET =
@@ -66,6 +67,29 @@ describe("production readiness", () => {
     );
   });
 
+  it("rejects missing storage backend configuration", () => {
+    const report = checkProductionReadiness(
+      {
+        FORTEXA_AUTH_SECRET: "0123456789abcdef0123456789abcdef",
+        FORTEXA_OPERATOR_WALLETS: VALID_OPERATOR_WALLET,
+        FORTEXA_SHARED_STATE_PATH: "shared/security-state.json",
+        STELLAR_HORIZON_URL: "https://horizon.stellar.org",
+        STELLAR_NETWORK_PASSPHRASE: Networks.PUBLIC,
+      },
+      { cwd: "/srv/fortexa" }
+    );
+
+    expect(report.ok).toBe(false);
+    expect(report.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          setting: "DATABASE_URL or FORTEXA_STORE_DIR",
+          message: expect.stringContaining("persistent storage backend"),
+        }),
+      ])
+    );
+  });
+
   it("rejects unsafe demo defaults for Horizon and file storage", () => {
     const report = checkProductionReadiness(
       {
@@ -100,7 +124,7 @@ describe("production readiness", () => {
   it("formats actionable output without exposing secret values", () => {
     const report = checkProductionReadiness(
       {
-        FORTEXA_AUTH_SECRET: "super-secret-value-that-should-not-print",
+        FORTEXA_AUTH_SECRET: "too-short-secret",
       },
       { cwd: "/srv/fortexa" }
     );
@@ -108,6 +132,14 @@ describe("production readiness", () => {
     const formatted = formatProductionReadinessReport(report);
 
     expect(formatted).toContain("FORTEXA_AUTH_SECRET");
-    expect(formatted).not.toContain("super-secret-value-that-should-not-print");
+    expect(formatted).not.toContain("too-short-secret");
+  });
+
+  it("only enforces payment-flow readiness in production", () => {
+    const report = getProtectedPaymentFlowReadinessReport({
+      NODE_ENV: "development",
+    });
+
+    expect(report).toBeNull();
   });
 });

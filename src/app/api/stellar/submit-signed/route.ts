@@ -5,6 +5,7 @@ import { readJsonBody } from "@/lib/http/read-json-body";
 import { jsonWithRequestContext } from "@/lib/observability/http";
 import { getRequestLogContext, logError, logInfo, logWarn } from "@/lib/observability/logger";
 import { recordStellarSubmitResult } from "@/lib/observability/metrics";
+import { getProtectedPaymentFlowReadinessReport } from "@/lib/readiness/production";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { decodeSignedXdrSourceAccount, submitSignedTransactionXdr } from "@/lib/stellar/client";
 import { getStellarExplorerTransactionUrl } from "@/lib/stellar/network";
@@ -129,6 +130,23 @@ export async function POST(request: NextRequest) {
     if (!auth.ok) {
       logWarn("Submit signed route unauthorized", context);
       return auth.response;
+    }
+
+    const readinessReport = getProtectedPaymentFlowReadinessReport();
+    if (readinessReport) {
+      logWarn("Submit signed blocked by production readiness check", context);
+      return jsonWithRequestContext(request, {
+        route: "/api/stellar/submit-signed",
+        startedAtMs,
+        status: 503,
+        body: {
+          error:
+            "Protected payment flows are disabled until Fortexa passes the production readiness check.",
+          issues: readinessReport.issues,
+          command: "npm run check:production-readiness",
+        },
+        headers: rateLimitHeaders(rate),
+      });
     }
 
     const userId = auth.session.userId;
