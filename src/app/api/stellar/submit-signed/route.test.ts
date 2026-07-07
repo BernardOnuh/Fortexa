@@ -1,5 +1,5 @@
 import { Account, Asset, Keypair, Networks, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AUTH_COOKIE_KEY, createSessionToken } from "@/lib/auth/session";
@@ -85,7 +85,6 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { readJsonBody } from "@/lib/http/read-json-body";
 import { getUserWallet } from "@/lib/storage/user-wallet-store";
 import { stellarSubmitSignedRequestSchema } from "@/lib/validation/schemas";
-import { POST } from "./route";
 
 function buildSignedXdr(signerKp: Keypair, sourcePublicKey: string) {
   const account = new Account(sourcePublicKey, "1");
@@ -229,6 +228,14 @@ describe("POST /api/stellar/submit-signed authorization", () => {
   });
 
   it("returns 403 for viewer role (operator-only route)", async () => {
+    vi.mocked(requireAuth).mockReturnValueOnce({
+      ok: false,
+      response: NextResponse.json(
+        { error: "Forbidden. Insufficient role permissions." },
+        { status: 403 },
+      ),
+    } as unknown as ReturnType<typeof requireAuth>);
+
     const request = new NextRequest("http://localhost/api/stellar/submit-signed", {
       method: "POST",
       headers: {
