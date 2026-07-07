@@ -4,7 +4,7 @@ import type {
   SecurityEvaluation,
   SecurityFinding,
 } from "@/lib/types/domain";
-import { fetchBlocklist } from "@/lib/security/blocklist";
+import { fetchBlocklist, getBlocklistHealth } from "@/lib/security/blocklist";
 
 /** Configuration for analyzer timeout behavior. */
 export interface AnalyzerConfig {
@@ -171,6 +171,13 @@ async function fetchBlocklistWithTimeout(
     try {
       const blocklist = await fetchBlocklist();
       clearTimeout(timeoutId);
+      const health = getBlocklistHealth();
+      if (health.lastError) {
+        return {
+          blocklist,
+          status: { blocked: true, timedOut: false, error: health.lastError },
+        };
+      }
       return { blocklist, status: { blocked: false, timedOut: false } };
     } finally {
       clearTimeout(timeoutId);
