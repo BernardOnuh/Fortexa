@@ -184,8 +184,6 @@ async function fetchBlocklistWithTimeout(
     }
   } catch (err) {
     const isTimeout = err instanceof Error && err.name === "AbortError";
-    const isNetworkError =
-      err instanceof TypeError && err.message.includes("fetch");
 
     return {
       blocklist: [],
