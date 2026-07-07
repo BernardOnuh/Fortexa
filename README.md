@@ -41,6 +41,24 @@ If you only read one section, read this:
 4. For allowed flows, **build unsigned XDR → sign in wallet → submit signed XDR**.
 5. Verify outcome with **Explorer link** and inspect evidence in `/activity` and `/ops`.
 
+### ✅ Reviewer Checklist: Wallet-Bound Payment Flow
+
+The core security premise of Fortexa is that it **does not hold private keys or perform server-side signing.**
+This end-to-end flow validates that design:
+
+| Step | UI / Route | Source / Logic | Expected Signal |
+|---|---|---|---|
+| **1. Login** | `/login` | [`POST /api/auth/login`](src/app/api/auth/login/route.ts) <br> [`src/components/login-form.tsx`](src/components/login-form.tsx) | **Success**: Freighter challenge signed, session issued.<br>**Failure**: Signature mismatch, unauthorized wallet. |
+| **2. Decision** | `/console` | [`POST /api/decision`](src/app/api/decision/route.ts) <br> [`src/components/decision-console.tsx`](src/components/decision-console.tsx) | **Success**: Returns `APPROVE` or `WARN` with a fixed payment quote.<br>**Failure**: Returns `BLOCK` (no quote). |
+| **3. Quote Lock** | `/console` | [`POST /api/stellar/build-payment`](src/app/api/stellar/build-payment/route.ts) | **Success**: Build request perfectly matches the approved audit entry quote.<br>**Failure**: Server rejects tampered destination, amount, or memo with `403`. |
+| **4. Unsigned XDR Build** | `/console` | [`POST /api/stellar/build-payment`](src/app/api/stellar/build-payment/route.ts) | **Success**: Server returns valid unsigned XDR envelope.<br>**Failure**: Network timeout, missing parameters. |
+| **5. Wallet Signing** | `/console` | `signTransaction` inside <br> [`src/components/decision-console.tsx`](src/components/decision-console.tsx) | **Success**: Freighter popup appears, user signs, UI holds signed XDR.<br>**Failure**: User rejects in wallet. |
+| **6. Signed Submit** | `/console` | [`POST /api/stellar/submit-signed`](src/app/api/stellar/submit-signed/route.ts) | **Success**: Broadcasts successfully to Stellar Testnet (200 OK).<br>**Failure**: Horizon error (`tx_bad_seq`, `op_underfunded`). |
+| **7. Explorer Link** | `/console` | [`src/components/decision-console.tsx`](src/components/decision-console.tsx) | **Success**: Clickable link to Stellar Expert confirming hash matches. |
+| **8. Audit Evidence** | `/activity`<br>`/ops` | [`GET /api/audit`](src/app/api/audit/route.ts) <br> [`src/app/activity/page.tsx`](src/app/activity/page.tsx) | **Success**: Immutable record of the original decision and execution hash. |
+
+*(Note: Fortexa is currently built for testnet validation. Mainnet readiness requires further risk intel integrations.)*
+
 ---
 
 ## 3) 🧭 Current Product Model
@@ -99,6 +117,8 @@ Fortexa currently does **not perform server-side signing or private-key custody*
 
 - Session is wallet-bound at login.
 - Execution source wallet is derived from session identity.
+- Session wallet mappings expire automatically after 24 hours. Expired sessions will receive a `401 Unauthorized` response on protected endpoints.
+- Operators can forcefully revoke a compromised or stale session mapping via `DELETE /api/auth/wallet/revoke`. This deterministically removes the mapping from storage, requiring the user to reconnect their wallet.
 - Manual arbitrary wallet assignment in UI is removed.
 - `/api/stellar/balance` auto-syncs missing wallet mapping from session when possible.
 
