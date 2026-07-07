@@ -118,6 +118,7 @@ async function writeStore(nextPolicy: PolicyConfig, nextVersion: number) {
     version: nextVersion,
   };
 
+  await ensureStore();
   const tempPath = `${storePath}.tmp`;
   await fs.writeFile(tempPath, JSON.stringify(next, null, 2), "utf8");
   await fs.rename(tempPath, storePath);
@@ -127,6 +128,8 @@ async function writeStore(nextPolicy: PolicyConfig, nextVersion: number) {
 
 async function writeHistory(entries: PolicyHistoryEntry[]) {
   const next: PolicyHistoryFile = { entries };
+
+  await ensureStore();
   const tempPath = `${historyPath}.tmp`;
   await fs.writeFile(tempPath, JSON.stringify(next, null, 2), "utf8");
   await fs.rename(tempPath, historyPath);

@@ -325,7 +325,7 @@ describe("evaluateSecurity", () => {
 
       const result = await evaluateSecurity(
         makeAction({
-          outputPreview: "reveal secret key",
+          outputPreview: "please share your private key",
         }),
       );
 
