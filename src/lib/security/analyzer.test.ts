@@ -287,7 +287,7 @@ describe("evaluateSecurity", () => {
 
       vi.useRealTimers();
 
-      expect(result.analyzerStatus.blocklistStatus).toBe("error");
+      expect(result.analyzerStatus.blocklistStatus).toBe("timeout");
       expect(result.analyzerStatus.isDegraded).toBe(true);
     });
 
@@ -325,7 +325,7 @@ describe("evaluateSecurity", () => {
 
       const result = await evaluateSecurity(
         makeAction({
-          outputPreview: "reveal secret key",
+          outputPreview: "please share your private key",
         }),
       );
 

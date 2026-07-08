@@ -169,7 +169,7 @@ async function fetchBlocklistWithTimeout(
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const blocklist = await fetchBlocklist();
+      const blocklist = await fetchBlocklist({ signal: controller.signal, throwOnError: true });
       clearTimeout(timeoutId);
       return { blocklist, status: { blocked: false, timedOut: false } };
     } finally {
