@@ -85,7 +85,6 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { readJsonBody } from "@/lib/http/read-json-body";
 import { getUserWallet } from "@/lib/storage/user-wallet-store";
 import { stellarSubmitSignedRequestSchema } from "@/lib/validation/schemas";
-import { POST } from "./route";
 
 function buildSignedXdr(signerKp: Keypair, sourcePublicKey: string) {
   const account = new Account(sourcePublicKey, "1");

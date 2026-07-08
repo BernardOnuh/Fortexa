@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock3, Database, HelpCircle, Shield, ShieldOff } from "lucide-react";
-import { AlertTriangle, CheckCircle2, Clock3, Database, HelpCircle, Shield, ShieldOff } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Badge } from "@/components/ui/badge";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -75,6 +75,24 @@ function formatShortTime(iso: string) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(
     date.getSeconds()
   ).padStart(2, "0")}`;
+}
+
+function DependencyBadge({ name, status }: { name: string; status: string }) {
+  let variant: "approve" | "warn" | "block" | "default" = "default";
+  if (status === "healthy") {
+    variant = "approve";
+  } else if (status === "degraded") {
+    variant = "block";
+  } else if (status === "unconfigured" || status === "unknown") {
+    variant = "warn";
+  }
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-3 py-1.5 text-xs bg-[hsl(var(--muted)/0.3)]">
+      <span className="text-[hsl(var(--muted-foreground))]">{name}:</span>
+      <Badge variant={variant}>{status}</Badge>
+    </div>
+  );
 }
 
 export function OpsDashboard() {

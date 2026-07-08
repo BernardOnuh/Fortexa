@@ -635,7 +635,17 @@ export function PolicyEditor() {
                   </Button>
                   <Button
                     variant="outline"
-                    size="sm"     >
+                    size="sm"
+                    disabled={writeDisabled || version === entry.version || previewingRollback}
+                    onClick={() => previewRollback(entry.version)}
+                    title={
+                      writeDisabled
+                        ? "Viewer mode is read-only"
+                        : version === entry.version
+                          ? "Cannot rollback to the current active version"
+                          : "Preview rollback impact"
+                    }
+                  >
                     Preview
                   </Button>
                 </div>

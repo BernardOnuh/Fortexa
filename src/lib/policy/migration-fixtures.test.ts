@@ -50,7 +50,7 @@ describe("policy migration fixtures — normalizePolicy", () => {
 
   describe("v0-unknown-future-fields: policy with extra keys from a hypothetical future version", () => {
     it("strips unknown future fields so they cannot widen permissions", () => {
-      const result = load(unknownFutureFields) as Record<string, unknown>;
+      const result = load(unknownFutureFields) as unknown as Record<string, unknown>;
       expect(result["allowedRegions"]).toBeUndefined();
       expect(result["ipAllowlist"]).toBeUndefined();
       expect(result["auditWebhook"]).toBeUndefined();
