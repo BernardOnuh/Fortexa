@@ -97,7 +97,7 @@ function outputSafetyCheck(outputPreview?: string): SecurityFinding[] {
     }
   }
 
-  if (/private key|secret seed|mnemonic/i.test(outputPreview)) {
+  if (/private key|secret (?:seed|key)|mnemonic/i.test(outputPreview)) {
     findings.push({
       code: "SECRET_TARGETING",
       title: "Sensitive secret extraction attempt",
@@ -213,7 +213,7 @@ export async function evaluateSecurity(
     await fetchBlocklistWithTimeout(config.blocklistTimeoutMs);
 
   if (blocklistFetchStatus.timedOut) {
-    analyzerStatus.blocklistStatus = "timeout";
+    analyzerStatus.blocklistStatus = "error";
     analyzerStatus.blocklistTimedOut = true;
     analyzerStatus.blocklistError = "Blocklist fetch timed out";
     analyzerStatus.isDegraded = true;
