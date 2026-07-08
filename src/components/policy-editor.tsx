@@ -353,7 +353,9 @@ export function PolicyEditor() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadPolicy();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadHistory();
   }, []);
 
