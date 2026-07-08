@@ -219,8 +219,7 @@ export function PolicyEditor() {
             "Policy was changed by another operator. Please reload and retry.",
         });
         setStatus(
-          `Conflict: server is at v${conflictBody.currentVersion ?? "?"}, your edit was based on v${
-            conflictBody.expectedVersion ?? version ?? "?"
+          `Conflict: server is at v${conflictBody.currentVersion ?? "?"}, your edit was based on v${conflictBody.expectedVersion ?? version ?? "?"
           }.`,
         );
         // Refresh history view in case the other operator's save landed.
@@ -567,12 +566,12 @@ export function PolicyEditor() {
         </Card>
       </section>
 
-        <PolicyImportExport
-          currentPolicy={policy}
-          onImportApproved={handleImportPolicy}
-          isOperator={isOperator}
-          isLoading={loading || sessionLoading}
-        />
+      <PolicyImportExport
+        currentPolicy={policy}
+        onImportApproved={handleImportPolicy}
+        isOperator={isOperator}
+        isLoading={loading || sessionLoading}
+      />
 
       <Card>
         <CardHeader>
@@ -908,9 +907,8 @@ function SimulationPanel({
         {report.cases.map((entry) => (
           <li
             key={entry.id}
-            className={`rounded-lg border p-3 text-sm ${
-              entry.changed ? "border-amber-500/40 bg-amber-500/5" : "border-[hsl(var(--border))]"
-            }`}
+            className={`rounded-lg border p-3 text-sm ${entry.changed ? "border-amber-500/40 bg-amber-500/5" : "border-[hsl(var(--border))]"
+              }`}
           >
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>

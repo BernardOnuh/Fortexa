@@ -42,7 +42,7 @@ describe("policy migration fixtures — normalizePolicy", () => {
     it("returns a complete PolicyConfig with no undefined required fields", () => {
       const result = load(missingOptionalFields);
       for (const key of ["allowedDomains", "blockedDomains", "allowedTools", "blockedTools",
-                          "perTxCapXLM", "dailyCapXLM", "maxToolCallsPerDay", "riskThreshold"] as const) {
+        "perTxCapXLM", "dailyCapXLM", "maxToolCallsPerDay", "riskThreshold"] as const) {
         expect(result[key], `field "${key}" should not be undefined`).toBeDefined();
       }
     });
@@ -78,15 +78,15 @@ describe("policy migration fixtures — normalizePolicy", () => {
 
     it("resolves every field to the corresponding default", () => {
       expect(load(emptyPolicy)).toEqual({
-        allowedDomains:    defaultPolicyConfig.allowedDomains,
-        blockedDomains:    defaultPolicyConfig.blockedDomains,
-        allowedTools:      defaultPolicyConfig.allowedTools,
-        blockedTools:      defaultPolicyConfig.blockedTools,
-        perTxCapXLM:       defaultPolicyConfig.perTxCapXLM,
-        dailyCapXLM:       defaultPolicyConfig.dailyCapXLM,
+        allowedDomains: defaultPolicyConfig.allowedDomains,
+        blockedDomains: defaultPolicyConfig.blockedDomains,
+        allowedTools: defaultPolicyConfig.allowedTools,
+        blockedTools: defaultPolicyConfig.blockedTools,
+        perTxCapXLM: defaultPolicyConfig.perTxCapXLM,
+        dailyCapXLM: defaultPolicyConfig.dailyCapXLM,
         maxToolCallsPerDay: defaultPolicyConfig.maxToolCallsPerDay,
-        riskThreshold:     defaultPolicyConfig.riskThreshold,
-        allowedHours:      defaultPolicyConfig.allowedHours,
+        riskThreshold: defaultPolicyConfig.riskThreshold,
+        allowedHours: defaultPolicyConfig.allowedHours,
       });
     });
   });
