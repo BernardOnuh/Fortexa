@@ -214,7 +214,16 @@ function viewerCookie() {
 }
 
 describe("POST /api/stellar/submit-signed authorization", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("returns 401 when unauthenticated", async () => {
+    vi.mocked(requireAuth).mockReturnValueOnce({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
+    } as unknown as ReturnType<typeof requireAuth>);
+
     const request = new NextRequest("http://localhost/api/stellar/submit-signed", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -226,6 +235,11 @@ describe("POST /api/stellar/submit-signed authorization", () => {
   });
 
   it("returns 403 for viewer role (operator-only route)", async () => {
+    vi.mocked(requireAuth).mockReturnValueOnce({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    } as unknown as ReturnType<typeof requireAuth>);
+
     const request = new NextRequest("http://localhost/api/stellar/submit-signed", {
       method: "POST",
       headers: {
