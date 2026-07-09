@@ -1,8 +1,11 @@
 import { Account, Asset, Keypair, Networks, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { AUTH_COOKIE_KEY, createSessionToken } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/require-auth";
+import { readJsonBody } from "@/lib/http/read-json-body";
+import { getUserWallet } from "@/lib/storage/user-wallet-store";
+import { stellarSubmitSignedRequestSchema } from "@/lib/validation/schemas";
 import { POST } from "./route";
 
 vi.mock("@/lib/auth/require-auth", () => ({
@@ -80,12 +83,6 @@ vi.mock("@/lib/stellar/client", async (importOriginal) => {
     })),
   };
 });
-
-import { requireAuth } from "@/lib/auth/require-auth";
-import { readJsonBody } from "@/lib/http/read-json-body";
-import { getUserWallet } from "@/lib/storage/user-wallet-store";
-import { stellarSubmitSignedRequestSchema } from "@/lib/validation/schemas";
-import { POST } from "./route";
 
 function buildSignedXdr(signerKp: Keypair, sourcePublicKey: string) {
   const account = new Account(sourcePublicKey, "1");
