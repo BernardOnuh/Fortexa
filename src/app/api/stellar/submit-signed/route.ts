@@ -1,16 +1,21 @@
 import { NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/auth/require-auth";
+import { readJsonBody } from "@/lib/http/read-json-body";
 import { jsonWithRequestContext } from "@/lib/observability/http";
 import { getRequestLogContext, logError, logInfo, logWarn } from "@/lib/observability/logger";
+import { recordStellarSubmitResult } from "@/lib/observability/metrics";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
-import { submitSignedTransactionXdr } from "@/lib/stellar/client";
+import { decodeSignedXdrSourceAccount, submitSignedTransactionXdr } from "@/lib/stellar/client";
 import {
   getIdempotencyRecord,
   hashSignedXdr,
+  maybeRunCleanup,
   putIdempotencyRecord,
 } from "@/lib/storage/submit-idempotency-store";
+import { getUserWallet } from "@/lib/storage/user-wallet-store";
 import { stellarSubmitSignedRequestSchema } from "@/lib/validation/schemas";
+import { normalizeHorizonError } from "@/lib/utils/horizonErrors";
 
 type HorizonErrorContext = {
   explanation: string;
@@ -119,6 +124,8 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  maybeRunCleanup();
+
   try {
     const auth = requireAuth(request, { allowedRoles: ["operator"] });
 
@@ -129,8 +136,19 @@ export async function POST(request: NextRequest) {
 
     const userId = auth.session.userId;
 
-    const rawPayload = (await request.json().catch(() => ({}))) as unknown;
-    const parsedPayload = stellarSubmitSignedRequestSchema.safeParse(rawPayload);
+    const bodyResult = await readJsonBody(request);
+    if (!bodyResult.ok) {
+      logWarn("Submit signed payload too large", { ...context, userId });
+      return jsonWithRequestContext(request, {
+        route: "/api/stellar/submit-signed",
+        startedAtMs,
+        status: 413,
+        body: { error: bodyResult.error },
+        headers: rateLimitHeaders(rate),
+      });
+    }
+
+    const parsedPayload = stellarSubmitSignedRequestSchema.safeParse(bodyResult.data);
 
     if (!parsedPayload.success) {
       logWarn("Submit signed validation failed", { ...context, userId });
@@ -147,6 +165,62 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = parsedPayload.data;
+
+    const assignedWallet = await getUserWallet(userId);
+
+    if (assignedWallet && "expired" in assignedWallet) {
+      logWarn("Submit signed wallet expired", { ...context, userId });
+      return jsonWithRequestContext(request, {
+        route: "/api/stellar/submit-signed",
+        startedAtMs,
+        status: 401,
+        body: { error: "Session wallet mapping has expired." },
+        headers: rateLimitHeaders(rate),
+      });
+    }
+
+    if (!assignedWallet) {
+      logWarn("Submit signed missing wallet mapping", { ...context, userId });
+      return jsonWithRequestContext(request, {
+        route: "/api/stellar/submit-signed",
+        startedAtMs,
+        status: 401,
+        body: { error: "No session wallet mapping found for this user." },
+        headers: rateLimitHeaders(rate),
+      });
+    }
+
+    const xdrSourceResult = decodeSignedXdrSourceAccount(payload.signedXdr);
+
+    if (!xdrSourceResult.ok) {
+      logWarn("Submit signed XDR malformed", { ...context, userId });
+      return jsonWithRequestContext(request, {
+        route: "/api/stellar/submit-signed",
+        startedAtMs,
+        status: 400,
+        body: { error: "Signed XDR could not be decoded. It may be malformed or built for the wrong network." },
+        headers: rateLimitHeaders(rate),
+      });
+    }
+
+    if (xdrSourceResult.sourceAccount !== assignedWallet.publicKey) {
+      logWarn("Submit signed source wallet mismatch", {
+        ...context,
+        userId,
+        expectedWallet: assignedWallet.publicKey,
+        actualSource: xdrSourceResult.sourceAccount,
+      });
+      recordStellarSubmitResult("source_wallet_mismatch");
+      return jsonWithRequestContext(request, {
+        route: "/api/stellar/submit-signed",
+        startedAtMs,
+        status: 400,
+        body: {
+          error: "Signed transaction source account does not match your session wallet.",
+        },
+        headers: rateLimitHeaders(rate),
+      });
+    }
 
     const headerKey = request.headers.get("idempotency-key")?.trim();
     const bodyKey = payload.idempotencyKey?.trim();
@@ -170,6 +244,7 @@ export async function POST(request: NextRequest) {
 
       if (existing && existing.xdrHash === xdrHash) {
         logInfo("Signed transaction idempotent replay", { ...context, userId, idempotencyKey });
+        recordStellarSubmitResult("idempotency_replay");
         return jsonWithRequestContext(request, {
           route: "/api/stellar/submit-signed",
           startedAtMs,
@@ -181,6 +256,7 @@ export async function POST(request: NextRequest) {
 
       if (existing) {
         logWarn("Signed transaction idempotency conflict", { ...context, userId, idempotencyKey });
+        recordStellarSubmitResult("idempotency_conflict");
         return jsonWithRequestContext(request, {
           route: "/api/stellar/submit-signed",
           startedAtMs,
@@ -201,6 +277,8 @@ export async function POST(request: NextRequest) {
       txHash: submitted.hash,
       ledger: submitted.ledger,
     });
+
+    recordStellarSubmitResult("success");
 
     const responseBody = {
       ok: true,
@@ -225,22 +303,28 @@ export async function POST(request: NextRequest) {
         ? { ...rateLimitHeaders(rate), "Idempotency-Replayed": "false" }
         : rateLimitHeaders(rate),
     });
-  } catch (error) {
+
+} catch (error) {
     const formatted = formatSubmitError(error);
+    const category = normalizeHorizonError(formatted.txCode);
     logError("Submit signed internal error", {
       ...context,
       detail: formatted.message,
+      horizonCategory: category,
     });
+    recordStellarSubmitResult("horizon_failure");
     return jsonWithRequestContext(request, {
       route: "/api/stellar/submit-signed",
       startedAtMs,
       status: 500,
       body: {
         error: formatted.message,
+        category,
         resultCode: formatted.txCode,
         operationCodes: formatted.opCodes,
         explanation: formatted.explanation,
         nextStep: formatted.nextStep,
+        rawError: formatted,
       },
       headers: rateLimitHeaders(rate),
     });

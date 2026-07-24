@@ -1,18 +1,19 @@
 import {
   Asset,
+  FeeBumpTransaction,
   Horizon,
   Memo,
-  Networks,
   Operation,
+  Transaction,
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
 
 import type { StellarPaymentRequest } from "@/lib/types/domain";
-
-const HORIZON_URL = process.env.STELLAR_HORIZON_URL ?? "https://horizon-testnet.stellar.org";
+import { assertStellarNetworkConfig, getStellarHorizonUrl } from "@/lib/stellar/network-config";
 
 export function getHorizonServer() {
-  return new Horizon.Server(HORIZON_URL);
+  const { horizonUrl } = assertStellarNetworkConfig();
+  return new Horizon.Server(horizonUrl);
 }
 
 export async function getNativeBalance(publicKey: string) {
@@ -23,12 +24,13 @@ export async function getNativeBalance(publicKey: string) {
 }
 
 export async function buildUnsignedPaymentTransaction(request: StellarPaymentRequest, sourcePublicKey: string) {
+  const { networkPassphrase } = assertStellarNetworkConfig();
   const server = getHorizonServer();
   const sourceAccount = await server.loadAccount(sourcePublicKey);
 
   const transaction = new TransactionBuilder(sourceAccount, {
     fee: (await server.fetchBaseFee()).toString(),
-    networkPassphrase: Networks.TESTNET,
+    networkPassphrase,
   })
     .addOperation(
       Operation.payment({
@@ -43,13 +45,52 @@ export async function buildUnsignedPaymentTransaction(request: StellarPaymentReq
 
   return {
     xdr: transaction.toXDR(),
-    networkPassphrase: Networks.TESTNET,
+    networkPassphrase,
   };
 }
 
+export type SignedXdrSourceResult =
+  | { ok: true; sourceAccount: string; isFeeBump: boolean }
+  | { ok: false; reason: "malformed" };
+
+/**
+ * Decodes a signed transaction XDR (without submitting it to Horizon) and
+ * extracts the transaction-level source account.
+ *
+ * For a regular Transaction, this is `transaction.source`.
+ * For a FeeBumpTransaction, the outer envelope's `source`/`feeSource` pays
+ * the fee but does not "own" the operations, so we resolve to the inner
+ * transaction's source account instead — that's the account whose signed
+ * intent actually matches the session wallet.
+ *
+ * Returns `{ ok: false, reason: "malformed" }` instead of throwing so
+ * callers can return a clean 400 response.
+ */
+export function decodeSignedXdrSourceAccount(signedXdr: string): SignedXdrSourceResult {
+  const { networkPassphrase } = assertStellarNetworkConfig();
+
+  let decoded: Transaction | FeeBumpTransaction;
+  try {
+    decoded = TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
+  } catch {
+    return { ok: false, reason: "malformed" };
+  }
+
+  if (decoded instanceof FeeBumpTransaction) {
+    return {
+      ok: true,
+      sourceAccount: decoded.innerTransaction.source,
+      isFeeBump: true,
+    };
+  }
+
+  return { ok: true, sourceAccount: decoded.source, isFeeBump: false };
+}
+
 export async function submitSignedTransactionXdr(signedXdr: string) {
+  const { networkPassphrase } = assertStellarNetworkConfig();
   const server = getHorizonServer();
-  const transaction = TransactionBuilder.fromXDR(signedXdr, Networks.TESTNET);
+  const transaction = TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
   const submitted = await server.submitTransaction(transaction);
 
   return {
@@ -59,3 +100,5 @@ export async function submitSignedTransactionXdr(signedXdr: string) {
     resultXdr: submitted.result_xdr,
   };
 }
+
+export { getStellarHorizonUrl };

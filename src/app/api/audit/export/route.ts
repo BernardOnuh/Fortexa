@@ -4,7 +4,14 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { jsonWithRequestContext } from "@/lib/observability/http";
 import { getRequestLogContext, logError, logInfo, logWarn } from "@/lib/observability/logger";
 import { listAllAuditEntriesByUser, listAuditEntries, validateAuditFilter } from "@/lib/storage/audit-store";
+import { sanitizeCsvCell } from "@/utils/csv.utils";
 import type { AuditFilter } from "@/lib/storage/audit-store";
+import { redactAuditExportEntriesByUser, redactAuditExportPayload } from "@/lib/audit/redact";
+
+
+
+
+
 
 function toCsv(rows: Array<Record<string, string | number | boolean | null>>) {
   if (rows.length === 0) {
@@ -16,7 +23,7 @@ function toCsv(rows: Array<Record<string, string | number | boolean | null>>) {
   const lines = [headers.join(",")];
 
   for (const row of rows) {
-    const line = headers.map((header) => escape(String(row[header] ?? ""))).join(",");
+    const line = headers.map((header) => escape(sanitizeCsvCell(row[header] ?? ""))).join(",");
     lines.push(line);
   }
 
@@ -89,8 +96,9 @@ export async function GET(request: NextRequest) {
           body: {
             scope: "all",
             exportedBy: auth.session.userId,
-            entriesByUser: all,
+            entriesByUser: redactAuditExportEntriesByUser(all),
           },
+
         });
       }
 
@@ -135,8 +143,9 @@ export async function GET(request: NextRequest) {
         body: {
           scope: "mine",
           userId: auth.session.userId,
-          entries: mine,
+          entries: redactAuditExportPayload(mine),
         },
+
       });
     }
 
@@ -154,8 +163,10 @@ export async function GET(request: NextRequest) {
       previousHash: entry.previousHash ?? "",
     }));
 
-    logInfo("Audit export success (mine/csv)", { ...context, userId: auth.session.userId });
-    return new NextResponse(toCsv(rows), {
+      logInfo("Audit export success (mine/csv)", { ...context, userId: auth.session.userId });
+    return new NextResponse(toCsv(redactAuditExportPayload(rows)), {
+
+
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
