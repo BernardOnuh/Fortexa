@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { History } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -108,7 +108,7 @@ export function PolicyEditor() {
     };
   }
 
-  async function loadPolicy() {
+  const loadPolicy = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/policy", { cache: "no-store" });
@@ -133,7 +133,7 @@ export function PolicyEditor() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   /**
    * Pull the latest server version and replace the editor draft with it.
@@ -297,7 +297,7 @@ export function PolicyEditor() {
     }
   }
 
-  async function loadHistory() {
+  const loadHistory = useCallback(async () => {
     try {
       const response = await fetch("/api/policy/history?limit=8", { cache: "no-store" });
       const payload = (await response.json()) as PolicyHistoryResponse;
@@ -310,7 +310,7 @@ export function PolicyEditor() {
     } catch {
       setHistory([]);
     }
-  }
+  }, []);
 
   async function previewRollback(versionToPreview: number) {
     if (!isOperator) {
@@ -444,7 +444,7 @@ export function PolicyEditor() {
   useEffect(() => {
     void loadPolicy();
     void loadHistory();
-  }, []);
+  }, [loadPolicy, loadHistory]);
 
   return (
     <div className="space-y-6">

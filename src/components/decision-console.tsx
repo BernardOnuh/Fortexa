@@ -142,7 +142,7 @@ export function DecisionConsole() {
     if (step === 4 && evaluatedAmount != null && !executeAmount) {
       setExecuteAmount(String(evaluatedAmount));
     }
-  }, [step, evaluatedAmount, executeAmount]);
+  }, [step, evaluatedAmount, executeAmount, setExecuteAmount]);
 
   function resetPreparedXdr() {
     setUnsignedXdr("");
