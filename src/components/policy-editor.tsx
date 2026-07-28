@@ -442,7 +442,9 @@ export function PolicyEditor() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch on mount
     void loadPolicy();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch on mount
     void loadHistory();
   }, [loadPolicy, loadHistory]);
 
@@ -635,7 +637,9 @@ export function PolicyEditor() {
                   </Button>
                   <Button
                     variant="outline"
-                    size="sm"     >
+                    size="sm"
+                    onClick={() => previewRollback(entry.version)}
+                  >
                     Preview
                   </Button>
                 </div>

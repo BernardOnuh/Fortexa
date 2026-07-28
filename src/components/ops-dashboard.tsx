@@ -108,8 +108,6 @@ export function OpsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(true);
-  const [lastRefreshed, setLastRefreshed] = useState<string | null>(null);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -178,7 +176,6 @@ export function OpsDashboard() {
           return next.slice(-15);
         });
         setError(null);
-        setLastRefreshed(new Date().toISOString());
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "Ops data fetch failed.");
