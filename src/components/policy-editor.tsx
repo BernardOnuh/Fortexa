@@ -441,8 +441,10 @@ export function PolicyEditor() {
   }
 
   useEffect(() => {
-    void loadPolicy();
-    void loadHistory();
+    queueMicrotask(() => {
+      void loadPolicy();
+      void loadHistory();
+    });
   }, []);
 
   return (

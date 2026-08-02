@@ -1,5 +1,5 @@
 import { Account, Asset, Keypair, Networks, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AUTH_COOKIE_KEY, createSessionToken } from "@/lib/auth/session";
@@ -228,6 +228,11 @@ describe("POST /api/stellar/submit-signed authorization", () => {
   });
 
   it("returns 403 for viewer role (operator-only route)", async () => {
+    vi.mocked(requireAuth).mockReturnValueOnce({
+      ok: false,
+      response: new NextResponse(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    } as ReturnType<typeof requireAuth>);
+
     const request = new NextRequest("http://localhost/api/stellar/submit-signed", {
       method: "POST",
       headers: {

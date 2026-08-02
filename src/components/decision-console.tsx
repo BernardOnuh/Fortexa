@@ -140,7 +140,9 @@ export function DecisionConsole() {
 
   useEffect(() => {
     if (step === 4 && evaluatedAmount != null && !executeAmount) {
-      setExecuteAmount(String(evaluatedAmount));
+      queueMicrotask(() => {
+        setExecuteAmount(String(evaluatedAmount));
+      });
     }
   }, [step, evaluatedAmount, executeAmount]);
 

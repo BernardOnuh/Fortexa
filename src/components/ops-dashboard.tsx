@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock3, Database, HelpCircle, Shield, ShieldOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Database, Shield, ShieldOff } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Badge } from "@/components/ui/badge";
 

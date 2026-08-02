@@ -271,11 +271,6 @@ describe("evaluateSecurity", () => {
         () => new Promise(() => {}), // never resolves
       );
 
-      // Use shorter timeout for test
-      const timeoutPromise = new Promise<{ status: "timeout" }>((resolve) => {
-        setTimeout(() => resolve({ status: "timeout" }), 100);
-      });
-
       // Mock the setTimeout so we can trigger timeouts during test
       vi.useFakeTimers();
       vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(abortError);

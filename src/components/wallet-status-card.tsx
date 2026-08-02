@@ -39,7 +39,9 @@ export function WalletStatusCard({ compact = false }: { compact?: boolean }) {
   }
 
   useEffect(() => {
-    void loadWallet();
+    queueMicrotask(() => {
+      void loadWallet();
+    });
   }, []);
 
   useEffect(() => {

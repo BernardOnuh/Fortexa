@@ -273,7 +273,8 @@ describe("generateAgentActionWithGroq — happy path", () => {
   });
 
   it("assigns a UUID when model omits the id field", async () => {
-    const { id: _omit, ...withoutId } = VALID_ACTION;
+    const withoutId = { ...VALID_ACTION };
+    delete (withoutId as { id?: string }).id;
     mockGroqResponse(JSON.stringify(withoutId));
 
     const action = await generateAgentActionWithGroq(VALID_INPUT);

@@ -287,8 +287,9 @@ describe("/api/audit/export route", () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get("Content-Type")).toBe("text/csv; charset=utf-8");
+      const expectedFilename = `fortexa-audit-mine-${new Date().toISOString().slice(0, 10)}.csv`;
       expect(response.headers.get("Content-Disposition")).toBe(
-        "attachment; filename=fortexa-audit-mine.csv"
+        `attachment; filename=${expectedFilename}`
       );
 
       const body = await response.text();
