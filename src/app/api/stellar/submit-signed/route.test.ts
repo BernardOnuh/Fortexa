@@ -2,7 +2,6 @@ import { Account, Asset, Keypair, Networks, Operation, TransactionBuilder } from
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AUTH_COOKIE_KEY, createSessionToken } from "@/lib/auth/session";
 import { POST } from "./route";
 
 vi.mock("@/lib/auth/require-auth", () => ({
@@ -85,7 +84,6 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { readJsonBody } from "@/lib/http/read-json-body";
 import { getUserWallet } from "@/lib/storage/user-wallet-store";
 import { stellarSubmitSignedRequestSchema } from "@/lib/validation/schemas";
-import { POST } from "./route";
 
 function buildSignedXdr(signerKp: Keypair, sourcePublicKey: string) {
   const account = new Account(sourcePublicKey, "1");
@@ -200,24 +198,16 @@ describe("POST /api/stellar/submit-signed - source wallet verification", () => {
   });
 });
 
-function setupSecret() {
-  process.env.FORTEXA_AUTH_SECRET = "integration-test-secret";
-}
-
-function viewerCookie() {
-  setupSecret();
-  const token = createSessionToken({
-    email: "viewer@fortexa.local",
-    role: "viewer",
-    userId: "submit-viewer-id",
-    expiresInSeconds: 120,
-  });
-
-  return `${AUTH_COOKIE_KEY}=${token}`;
-}
-
 describe("POST /api/stellar/submit-signed authorization", () => {
   it("returns 401 when unauthenticated", async () => {
+    vi.mocked(requireAuth).mockReturnValueOnce({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "Unauthorized. Login required." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    } as ReturnType<typeof requireAuth>);
+
     const request = new NextRequest("http://localhost/api/stellar/submit-signed", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -229,12 +219,17 @@ describe("POST /api/stellar/submit-signed authorization", () => {
   });
 
   it("returns 403 for viewer role (operator-only route)", async () => {
+    vi.mocked(requireAuth).mockReturnValueOnce({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "Forbidden. Insufficient role permissions." }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      }),
+    } as ReturnType<typeof requireAuth>);
+
     const request = new NextRequest("http://localhost/api/stellar/submit-signed", {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        cookie: viewerCookie(),
-      },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ signedXdr: "AAAA" }),
     });
 

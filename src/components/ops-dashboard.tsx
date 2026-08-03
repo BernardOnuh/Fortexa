@@ -108,6 +108,8 @@ export function OpsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(true);
+  const [lastRefreshed, setLastRefreshed] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -176,6 +178,7 @@ export function OpsDashboard() {
           return next.slice(-15);
         });
         setError(null);
+        setLastRefreshed(new Date().toISOString());
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "Ops data fetch failed.");
@@ -231,6 +234,15 @@ export function OpsDashboard() {
             <div className="text-sm text-[hsl(var(--muted-foreground))]">
               {health?.timestamp ?? "-"}
             </div>
+            {lastRefreshed ? (
+              <div
+                className="text-xs text-[hsl(var(--muted-foreground))] opacity-70"
+                id="ops-last-refreshed"
+                data-testid="last-refreshed"
+              >
+                Last refreshed: {formatShortTime(lastRefreshed)}
+              </div>
+            ) : null}
             {health?.dependencies ? (
               <div className="flex flex-wrap gap-2">
                 <DependencyBadge name="Storage" status={health.dependencies.storage} />
