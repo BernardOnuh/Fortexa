@@ -256,6 +256,8 @@ To clean up local developer state safely, you can use the local demo reset utili
   ```
   *(or `FORTEXA_ALLOW_LOCAL_RESET=true npx tsx scripts/reset-local-demo-state.ts --yes`)*
 
+`.env.example` is intentionally development-oriented and uses Stellar testnet defaults, so it will not pass the production readiness check until you replace the demo values with production configuration.
+
 ---
 
 ## 9) 🌍 Environment Variables
@@ -314,6 +316,7 @@ npm run start
 npm run lint
 npm test
 npm run test:watch
+npm run check:production-readiness
 npm run demo:scenarios
 npm run db:migrate
 ```
@@ -333,6 +336,48 @@ Run the standalone demo runner (prints expected vs actual for every seeded scena
 ```bash
 npm run demo:scenarios
 ```
+
+### Production Readiness Check
+
+Run this before every production deployment and before enabling protected payment flows:
+
+```bash
+npm run check:production-readiness
+```
+
+The readiness check validates:
+
+- `STELLAR_HORIZON_URL`
+- `STELLAR_NETWORK_PASSPHRASE`
+- `FORTEXA_AUTH_SECRET`
+- `FORTEXA_OPERATOR_WALLETS`
+- `DATABASE_URL` or `FORTEXA_STORE_DIR`
+- `REDIS_URL` or `FORTEXA_SHARED_STATE_PATH`
+
+It also rejects unsafe demo/default values such as testnet Horizon endpoints, mismatched Stellar network settings, and local demo file-store paths without printing secret values.
+
+Expected behavior:
+
+- Success: prints `Fortexa production readiness check passed.` and exits `0`.
+- Failure: prints `Fortexa production readiness check failed:` followed by the invalid setting and remediation for each issue, then exits non-zero.
+
+Example success:
+
+```bash
+$ npm run check:production-readiness
+Fortexa production readiness check passed.
+```
+
+Example failure:
+
+```bash
+$ npm run check:production-readiness
+Fortexa production readiness check failed:
+- STELLAR_NETWORK_PASSPHRASE: Testnet passphrase is still configured. Set STELLAR_NETWORK_PASSPHRASE to the Stellar public network passphrase before deployment.
+- DATABASE_URL or FORTEXA_STORE_DIR: No persistent storage backend is explicitly configured. Configure DATABASE_URL for Postgres or set FORTEXA_STORE_DIR to a durable production storage path.
+```
+
+In `NODE_ENV=production`, Fortexa also applies this check before `/api/stellar/build-payment` and `/api/stellar/submit-signed` execute. If configuration is unsafe, those routes return `503` with a non-sensitive issue list and the remediation command instead of attempting the payment flow.
 
 ---
 

@@ -217,6 +217,13 @@ function viewerCookie() {
 
 describe("POST /api/stellar/submit-signed authorization", () => {
   it("returns 401 when unauthenticated", async () => {
+    vi.mocked(requireAuth).mockReturnValue({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "Authentication required." }), {
+        status: 401,
+      }),
+    } as ReturnType<typeof requireAuth>);
+
     const request = new NextRequest("http://localhost/api/stellar/submit-signed", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -228,13 +235,12 @@ describe("POST /api/stellar/submit-signed authorization", () => {
   });
 
   it("returns 403 for viewer role (operator-only route)", async () => {
-    vi.mocked(requireAuth).mockReturnValueOnce({
+    vi.mocked(requireAuth).mockReturnValue({
       ok: false,
-      response: NextResponse.json(
-        { error: "Forbidden. Insufficient role permissions." },
-        { status: 403 },
-      ),
-    } as unknown as ReturnType<typeof requireAuth>);
+      response: new Response(JSON.stringify({ error: "Insufficient role." }), {
+        status: 403,
+      }),
+    } as ReturnType<typeof requireAuth>);
 
     const request = new NextRequest("http://localhost/api/stellar/submit-signed", {
       method: "POST",

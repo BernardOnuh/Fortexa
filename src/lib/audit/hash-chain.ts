@@ -55,6 +55,27 @@ export type ChainVerificationResult =
       legacyCount: number;
     };
 
+/** Hashes that identify the expected boundaries of an exported chain. */
+export interface ChainBoundaries {
+  firstEntryHash?: string;
+  lastEntryHash?: string;
+}
+
+/** Returns the boundary hashes for an export, omitting them for legacy-only data. */
+export function getChainBoundaries(entries: AuditEntry[]): ChainBoundaries {
+  const hashed = [...entries]
+    .filter((entry) => Boolean(entry.entryHash && entry.previousHash))
+    .sort((a, b) =>
+      a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0,
+    );
+
+  const firstEntryHash = hashed[0]?.entryHash;
+  const lastEntryHash = hashed.at(-1)?.entryHash;
+  return firstEntryHash && lastEntryHash
+    ? { firstEntryHash, lastEntryHash }
+    : {};
+}
+
 /**
  * Verifies the integrity of an audit hash chain.
  *
@@ -68,8 +89,13 @@ export type ChainVerificationResult =
  *    (detects reordering or deletion)
  *  - a hashed entry's entryHash does not match a fresh recomputation
  *    (detects field modification)
+ *  - an optional boundary hash does not match the first or last hashed entry
+ *    (detects deletion at either edge of an exported chain)
  */
-export function verifyHashChain(entries: AuditEntry[]): ChainVerificationResult {
+export function verifyHashChain(
+  entries: AuditEntry[],
+  boundaries?: ChainBoundaries,
+): ChainVerificationResult {
   const sorted = [...entries].sort((a, b) =>
     a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0
   );
@@ -77,6 +103,8 @@ export function verifyHashChain(entries: AuditEntry[]): ChainVerificationResult 
   let expectedPreviousHash = GENESIS_HASH;
   let checkedCount = 0;
   let legacyCount = 0;
+  let firstHashedEntryHash: string | undefined;
+  let lastHashedEntryHash: string | undefined;
 
   for (let i = 0; i < sorted.length; i++) {
     const entry = sorted[i]!;
@@ -86,7 +114,13 @@ export function verifyHashChain(entries: AuditEntry[]): ChainVerificationResult 
       continue;
     }
 
-    if (entry.previousHash !== expectedPreviousHash) {
+    // A declared first boundary identifies the beginning of an exported
+    // segment, which may legitimately follow entries omitted by a filter.
+    const isFirstHashedEntry = firstHashedEntryHash === undefined;
+    const previousHashValid = isFirstHashedEntry
+      ? boundaries?.firstEntryHash !== undefined || entry.previousHash === GENESIS_HASH
+      : entry.previousHash === expectedPreviousHash;
+    if (!previousHashValid) {
       return {
         valid: false,
         reason:
@@ -111,7 +145,37 @@ export function verifyHashChain(entries: AuditEntry[]): ChainVerificationResult 
     }
 
     expectedPreviousHash = entry.entryHash;
+    firstHashedEntryHash ??= entry.entryHash;
+    lastHashedEntryHash = entry.entryHash;
     checkedCount++;
+  }
+
+  if (
+    boundaries?.firstEntryHash !== undefined &&
+    firstHashedEntryHash !== boundaries.firstEntryHash
+  ) {
+    return {
+      valid: false,
+      reason:
+        "chain start boundary mismatch — the first exported record may have been deleted",
+      entryId: sorted.find((entry) => entry.entryHash)?.id,
+      checkedCount,
+      legacyCount,
+    };
+  }
+
+  if (
+    boundaries?.lastEntryHash !== undefined &&
+    lastHashedEntryHash !== boundaries.lastEntryHash
+  ) {
+    return {
+      valid: false,
+      reason:
+        "chain end boundary mismatch — the last exported record may have been deleted",
+      entryId: sorted.findLast((entry) => entry.entryHash)?.id,
+      checkedCount,
+      legacyCount,
+    };
   }
 
   return { valid: true, checkedCount, legacyCount };
