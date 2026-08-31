@@ -4,7 +4,10 @@ import type {
   SecurityEvaluation,
   SecurityFinding,
 } from "@/lib/types/domain";
-import { fetchBlocklist } from "@/lib/security/blocklist";
+import {
+  fetchBlocklist,
+  getBlocklistHealth,
+} from "@/lib/security/blocklist";
 
 /** Configuration for analyzer timeout behavior. */
 export interface AnalyzerConfig {
@@ -97,7 +100,7 @@ function outputSafetyCheck(outputPreview?: string): SecurityFinding[] {
     }
   }
 
-  if (/private key|secret seed|mnemonic/i.test(outputPreview)) {
+  if (/private key|secret key|secret seed|mnemonic/i.test(outputPreview)) {
     findings.push({
       code: "SECRET_TARGETING",
       title: "Sensitive secret extraction attempt",
@@ -169,8 +172,19 @@ async function fetchBlocklistWithTimeout(
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const blocklist = await fetchBlocklist({ signal: controller.signal, throwOnError: true });
+      const blocklist = await fetchBlocklist();
       clearTimeout(timeoutId);
+      const health = getBlocklistHealth();
+      if (health.lastError) {
+        return {
+          blocklist,
+          status: {
+            blocked: true,
+            timedOut: false,
+            error: health.lastError,
+          },
+        };
+      }
       return { blocklist, status: { blocked: false, timedOut: false } };
     } finally {
       clearTimeout(timeoutId);

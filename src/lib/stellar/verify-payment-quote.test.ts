@@ -155,6 +155,28 @@ describe("normalizeAmountXLM", () => {
     expect(normalizeAmountXLM("18")).toBe("18.0000000");
     expect(normalizeAmountXLM("18.5")).toBe("18.5000000");
   });
+
+  it.each([
+    0,
+    -1,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.MAX_SAFE_INTEGER + 1,
+    "0.00000001",
+    99999.99999999999,
+  ] as const)(
+    "rejects %s",
+    (amount) => {
+      expect(() => normalizeAmountXLM(amount)).toThrow(
+        "amountXLM must be a positive finite XLM amount with up to 7 decimals.",
+      );
+    },
+  );
+
+  it("preserves valid seven-decimal and maximum boundaries", () => {
+    expect(normalizeAmountXLM("0.0000001")).toBe("0.0000001");
+    expect(normalizeAmountXLM(100000)).toBe("100000.0000000");
+  });
 });
 
 describe("buildPaymentQuoteFromDecision", () => {
