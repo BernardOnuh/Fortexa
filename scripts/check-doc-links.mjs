@@ -103,8 +103,6 @@ function resolveTargets() {
  */
 function extractLinks(text) {
   const links = [];
-  const lines = text.split('\n');
-
   // Strip HTML comment blocks to avoid false positives
   const stripped = text.replace(/<!--[\s\S]*?-->/g, (m) => ' '.repeat(m.length));
   // Strip fenced code blocks

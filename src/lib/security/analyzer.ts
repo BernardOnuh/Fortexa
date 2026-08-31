@@ -161,9 +161,7 @@ function blocklistCheck(
  * Fetch blocklist with timeout support. Returns findings if successful, empty array if blocked/timed out/failed.
  * Returns status indicating what happened.
  */
-async function fetchBlocklistWithTimeout(
-  timeoutMs: number,
-): Promise<{
+async function fetchBlocklistWithTimeout(): Promise<{
   blocklist: string[];
   status: { blocked: boolean; timedOut: boolean; error?: string };
 }> {
@@ -192,21 +190,27 @@ async function fetchBlocklistWithTimeout(
   } catch (err) {
     const isTimeout = err instanceof Error && err.name === "AbortError";
 
+  // fetchBlocklist swallows errors internally, so check health for failures
+  const health = getBlocklistHealth();
+  if (health.configured && health.lastError) {
+    const isTimeout =
+      /abort|timeout/i.test(health.lastError);
     return {
-      blocklist: [],
+      blocklist,
       status: {
         blocked: true,
         timedOut: isTimeout,
-        error: err instanceof Error ? err.message : "Unknown error",
+        error: health.lastError,
       },
     };
   }
+
+  return { blocklist, status: { blocked: false, timedOut: false } };
 }
 
 export async function evaluateSecurity(
   action: AgentAction,
 ): Promise<SecurityEvaluation> {
-  const config = getAnalyzerConfig();
   const analyzerStatus: AnalyzerStatus = {
     blocklistStatus: "success",
     isDegraded: false,
@@ -222,16 +226,15 @@ export async function evaluateSecurity(
 
   // Fetch blocklist with timeout handling
   const { blocklist, status: blocklistFetchStatus } =
-    await fetchBlocklistWithTimeout(config.blocklistTimeoutMs);
+    await fetchBlocklistWithTimeout();
 
   if (blocklistFetchStatus.timedOut) {
     analyzerStatus.blocklistStatus = "error";
     analyzerStatus.blocklistTimedOut = true;
-    analyzerStatus.blocklistError = "Blocklist fetch timed out";
+    analyzerStatus.blocklistError =
+      blocklistFetchStatus.error ?? "Blocklist fetch timed out";
     analyzerStatus.isDegraded = true;
-    analyzerStatus.degradationReasons?.push(
-      `blocklist_timeout_${config.blocklistTimeoutMs}ms`,
-    );
+    analyzerStatus.degradationReasons?.push("blocklist_timeout");
   } else if (blocklistFetchStatus.blocked) {
     analyzerStatus.blocklistStatus = "error";
     analyzerStatus.blocklistError = blocklistFetchStatus.error;
