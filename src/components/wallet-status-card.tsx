@@ -25,7 +25,39 @@ export function WalletStatusCard({ compact = false }: { compact?: boolean }) {
   const [copied, setCopied] = useState(false);
   const copyResetTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function loadWallet() {
+  useEffect(() => {
+    let isActive = true;
+
+    const loadWallet = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/stellar/balance");
+        const payload = (await response.json()) as WalletData;
+        if (isActive) {
+          setData(payload);
+        }
+      } catch {
+        if (isActive) {
+          setData(null);
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadWallet();
+
+    return () => {
+      isActive = false;
+      if (copyResetTimeout.current) {
+        clearTimeout(copyResetTimeout.current);
+      }
+    };
+  }, []);
+
+  async function handleRefresh() {
     setLoading(true);
     try {
       const response = await fetch("/api/stellar/balance");
@@ -38,19 +70,6 @@ export function WalletStatusCard({ compact = false }: { compact?: boolean }) {
     }
   }
 
-  useEffect(() => {
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  void loadWallet();
-}, []);
-
-  useEffect(() => {
-    return () => {
-      if (copyResetTimeout.current) {
-        clearTimeout(copyResetTimeout.current);
-      }
-    };
-  }, []);
-
   async function copyPublicKey() {
     if (!data?.publicKey) return;
     await navigator.clipboard.writeText(data.publicKey);
@@ -60,7 +79,6 @@ export function WalletStatusCard({ compact = false }: { compact?: boolean }) {
     }
     copyResetTimeout.current = setTimeout(() => setCopied(false), 2000);
   }
-
   if (compact) {
     return (
       <div className="surface-elevated flex items-center justify-between gap-4 p-5">
@@ -84,7 +102,7 @@ export function WalletStatusCard({ compact = false }: { compact?: boolean }) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={loadWallet}
+          onClick={handleRefresh}
           disabled={loading}
           aria-label={loading ? "Refreshing wallet…" : "Refresh wallet balance"}
           className="shrink-0"
@@ -102,7 +120,7 @@ export function WalletStatusCard({ compact = false }: { compact?: boolean }) {
           <p className="text-xs uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Wallet layer</p>
           <p className="text-lg font-semibold">Agent wallet</p>
         </div>
-        <Button variant="outline" size="sm" onClick={loadWallet} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
           <RefreshCw aria-hidden="true" className={cn("mr-2 h-3.5 w-3.5", loading && "animate-spin")} />
           Refresh
         </Button>
