@@ -200,11 +200,10 @@ describe("POST /api/stellar/submit-signed - source wallet verification", () => {
 
 describe("POST /api/stellar/submit-signed authorization", () => {
   it("returns 401 when unauthenticated", async () => {
-    vi.mocked(requireAuth).mockReturnValueOnce({
+    vi.mocked(requireAuth).mockReturnValue({
       ok: false,
-      response: new Response(JSON.stringify({ error: "Unauthorized. Login required." }), {
+      response: new Response(JSON.stringify({ error: "Authentication required." }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
       }),
     } as ReturnType<typeof requireAuth>);
 
@@ -219,11 +218,10 @@ describe("POST /api/stellar/submit-signed authorization", () => {
   });
 
   it("returns 403 for viewer role (operator-only route)", async () => {
-    vi.mocked(requireAuth).mockReturnValueOnce({
+    vi.mocked(requireAuth).mockReturnValue({
       ok: false,
-      response: new Response(JSON.stringify({ error: "Forbidden. Insufficient role permissions." }), {
+      response: new Response(JSON.stringify({ error: "Insufficient role." }), {
         status: 403,
-        headers: { "Content-Type": "application/json" },
       }),
     } as ReturnType<typeof requireAuth>);
 
