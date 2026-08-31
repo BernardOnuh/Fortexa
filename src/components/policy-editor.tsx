@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { History } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -108,7 +108,7 @@ export function PolicyEditor() {
     };
   }
 
-  async function loadPolicy() {
+  const loadPolicy = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/policy", { cache: "no-store" });
@@ -133,7 +133,7 @@ export function PolicyEditor() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   /**
    * Pull the latest server version and replace the editor draft with it.
@@ -219,7 +219,8 @@ export function PolicyEditor() {
             "Policy was changed by another operator. Please reload and retry.",
         });
         setStatus(
-          `Conflict: server is at v${conflictBody.currentVersion ?? "?"}, your edit was based on v${conflictBody.expectedVersion ?? version ?? "?"
+          `Conflict: server is at v${conflictBody.currentVersion ?? "?"}, your edit was based on v${
+            conflictBody.expectedVersion ?? version ?? "?"
           }.`,
         );
         // Refresh history view in case the other operator's save landed.
@@ -296,7 +297,7 @@ export function PolicyEditor() {
     }
   }
 
-  async function loadHistory() {
+  const loadHistory = useCallback(async () => {
     try {
       const response = await fetch("/api/policy/history?limit=8", { cache: "no-store" });
       const payload = (await response.json()) as PolicyHistoryResponse;
@@ -309,7 +310,7 @@ export function PolicyEditor() {
     } catch {
       setHistory([]);
     }
-  }
+  }, []);
 
   async function previewRollback(versionToPreview: number) {
     if (!isOperator) {
@@ -441,11 +442,10 @@ export function PolicyEditor() {
   }
 
   useEffect(() => {
-    queueMicrotask(() => {
-      void loadPolicy();
-      void loadHistory();
-    });
-  }, []);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch on mount
+    void loadPolicy();
+    void loadHistory();
+  }, [loadPolicy, loadHistory]);
 
   return (
     <div className="space-y-6">
@@ -568,12 +568,12 @@ export function PolicyEditor() {
         </Card>
       </section>
 
-      <PolicyImportExport
-        currentPolicy={policy}
-        onImportApproved={handleImportPolicy}
-        isOperator={isOperator}
-        isLoading={loading || sessionLoading}
-      />
+        <PolicyImportExport
+          currentPolicy={policy}
+          onImportApproved={handleImportPolicy}
+          isOperator={isOperator}
+          isLoading={loading || sessionLoading}
+        />
 
       <Card>
         <CardHeader>
@@ -637,15 +637,7 @@ export function PolicyEditor() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={writeDisabled || version === entry.version || previewingRollback}
                     onClick={() => previewRollback(entry.version)}
-                    title={
-                      writeDisabled
-                        ? "Viewer mode is read-only"
-                        : version === entry.version
-                          ? "Cannot rollback to the current active version"
-                          : "Preview rollback impact"
-                    }
                   >
                     Preview
                   </Button>
@@ -909,8 +901,9 @@ function SimulationPanel({
         {report.cases.map((entry) => (
           <li
             key={entry.id}
-            className={`rounded-lg border p-3 text-sm ${entry.changed ? "border-amber-500/40 bg-amber-500/5" : "border-[hsl(var(--border))]"
-              }`}
+            className={`rounded-lg border p-3 text-sm ${
+              entry.changed ? "border-amber-500/40 bg-amber-500/5" : "border-[hsl(var(--border))]"
+            }`}
           >
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>

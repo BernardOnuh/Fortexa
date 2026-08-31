@@ -62,9 +62,8 @@ export function useAuthSession() {
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      void refresh();
-    });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial session refresh on mount
+    void refresh();
   }, [refresh]);
 
   return {

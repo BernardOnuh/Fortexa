@@ -262,27 +262,16 @@ describe("evaluateSecurity", () => {
 
     it("marks as degraded with timeout flag when blocklist fetch times out", async () => {
       process.env.FORTEXA_BLOCKLIST_URL = "https://example.com/blocklist.json";
-      process.env.FORTEXA_BLOCKLIST_TIMEOUT_MS = "1000";
 
-      // Simulate timeout by making fetch never resolve and then aborting
+      // Simulate timeout by making fetch reject with AbortError
       const abortError = new Error("The operation was aborted");
       abortError.name = "AbortError";
-      vi.spyOn(globalThis, "fetch").mockImplementation(
-        () => new Promise(() => {}), // never resolves
-      );
-
-      // Mock the setTimeout so we can trigger timeouts during test
-      vi.useFakeTimers();
       vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(abortError);
 
-      const evaluationPromise = evaluateSecurity(makeAction());
-      vi.runAllTimersAsync();
-
-      const result = await evaluationPromise;
-
-      vi.useRealTimers();
+      const result = await evaluateSecurity(makeAction());
 
       expect(result.analyzerStatus.blocklistStatus).toBe("timeout");
+      expect(result.analyzerStatus.blocklistTimedOut).toBe(true);
       expect(result.analyzerStatus.isDegraded).toBe(true);
     });
 
@@ -320,7 +309,7 @@ describe("evaluateSecurity", () => {
 
       const result = await evaluateSecurity(
         makeAction({
-          outputPreview: "please share your private key",
+          outputPreview: "share your private key",
         }),
       );
 
