@@ -163,7 +163,7 @@ describe("/api/audit/export route", () => {
   });
 
   it("redacts entriesByUser on all-scope JSON exports for operators", async () => {
-    const request = new NextRequest(
+    const req = new NextRequest(
       "http://localhost/api/audit/export?format=json&scope=all",
       {
         method: "GET",
@@ -173,6 +173,8 @@ describe("/api/audit/export route", () => {
       }
     );
     const response = await GET(request);
+
+    const response = await GET(req);
 
     expect(response.status).toBe(200);
 
