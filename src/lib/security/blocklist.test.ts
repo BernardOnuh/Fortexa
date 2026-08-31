@@ -41,8 +41,7 @@ describe("blocklist health", () => {
     process.env.FORTEXA_BLOCKLIST_URL = "https://example.com/blocklist.json";
     vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("Network error"));
 
-    const domains = await fetchBlocklist();
-    expect(domains).toEqual([]);
+    await expect(fetchBlocklist()).rejects.toThrow("Network error");
 
     const health = getBlocklistHealth();
     expect(health.configured).toBe(true);
@@ -62,8 +61,7 @@ describe("blocklist health", () => {
 
     vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("Timeout"));
 
-    const domains = await fetchBlocklist();
-    expect(domains).toEqual(["bad-actor.com"]);
+    await expect(fetchBlocklist()).rejects.toThrow("Timeout");
 
     const health = getBlocklistHealth();
     expect(health.configured).toBe(true);
@@ -78,8 +76,7 @@ describe("blocklist health", () => {
       new Response("Service Unavailable", { status: 503 })
     );
 
-    const domains = await fetchBlocklist();
-    expect(domains).toEqual([]);
+    await expect(fetchBlocklist()).rejects.toThrow("HTTP 503");
 
     const health = getBlocklistHealth();
     expect(health.lastError).toBe("HTTP 503");
