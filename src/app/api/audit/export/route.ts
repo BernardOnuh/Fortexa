@@ -7,6 +7,7 @@ import { listAllAuditEntriesByUser, listAuditEntries, validateAuditFilter } from
 import { sanitizeCsvCell } from "@/utils/csv.utils";
 import type { AuditFilter } from "@/lib/storage/audit-store";
 import { redactAuditExportEntriesByUser, redactAuditExportPayload } from "@/lib/audit/redact";
+import { getChainBoundaries } from "@/lib/audit/hash-chain";
 
 
 
@@ -97,6 +98,12 @@ export async function GET(request: NextRequest) {
             scope: "all",
             exportedBy: auth.session.userId,
             entriesByUser: redactAuditExportEntriesByUser(all),
+            chainBoundariesByUser: Object.fromEntries(
+              Object.entries(all).map(([userId, entries]) => [
+                userId,
+                getChainBoundaries(entries),
+              ]),
+            ),
           },
 
         });
@@ -144,6 +151,7 @@ export async function GET(request: NextRequest) {
           scope: "mine",
           userId: auth.session.userId,
           entries: redactAuditExportPayload(mine),
+          chainBoundary: getChainBoundaries(mine),
         },
 
       });

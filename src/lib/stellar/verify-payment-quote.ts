@@ -31,6 +31,36 @@ export type VerifyPaymentQuoteResult =
 
 const EXECUTABLE_DECISIONS = new Set(["APPROVE", "WARN"]);
 
+export const MAX_PAYMENT_AMOUNT_XLM = 100_000;
+const PAYMENT_AMOUNT_DECIMAL_PLACES = 7;
+export const PAYMENT_AMOUNT_ERROR =
+  "amountXLM must be a positive finite XLM amount with up to 7 decimals.";
+
+function isSafeScaledAmount(amount: number): boolean {
+  // Round-trip through the wire precision so values that would be silently
+  // rounded by Stellar are rejected instead of changing the authorized amount.
+  return Number(amount.toFixed(PAYMENT_AMOUNT_DECIMAL_PLACES)) === amount;
+}
+
+export function isValidPaymentAmountNumber(amount: number): boolean {
+  return (
+    Number.isFinite(amount) &&
+    amount > 0 &&
+    amount <= MAX_PAYMENT_AMOUNT_XLM &&
+    isSafeScaledAmount(amount)
+  );
+}
+
+export function isValidPaymentAmountString(amount: string): boolean {
+  if (!/^\d+(?:\.\d+)?$/.test(amount)) {
+    return false;
+  }
+
+  const [, fraction = ""] = amount.split(".");
+  return fraction.length <= PAYMENT_AMOUNT_DECIMAL_PLACES &&
+    isValidPaymentAmountNumber(Number(amount));
+}
+
 /** Default quote TTL: 300 seconds (5 minutes). */
 const DEFAULT_QUOTE_TTL_SECONDS = 300;
 
@@ -50,10 +80,16 @@ function getQuoteTtlMs(): number {
 }
 
 export function normalizeAmountXLM(amount: number | string): string {
-  const parsed = typeof amount === "number" ? amount : Number.parseFloat(amount);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error("Invalid XLM amount.");
+  const valid =
+    typeof amount === "number"
+      ? isValidPaymentAmountNumber(amount)
+      : isValidPaymentAmountString(amount);
+
+  if (!valid) {
+    throw new Error(PAYMENT_AMOUNT_ERROR);
   }
+
+  const parsed = typeof amount === "number" ? amount : Number(amount);
   return parsed.toFixed(7);
 }
 
@@ -110,13 +146,25 @@ export function verifyPaymentAgainstQuote(
     };
   }
 
-  const normalizedRequest = {
-    destination: request.destination.trim().toUpperCase(),
-    amountXLM: normalizeAmountXLM(request.amountXLM),
-    asset: request.asset,
-    memo: (request.memo ?? quote.memo).slice(0, 28),
-    network: request.network,
+  let normalizedRequest: Omit<PaymentBuildParams, "amountXLM"> & {
+    amountXLM: string;
   };
+  try {
+    normalizedRequest = {
+      destination: request.destination.trim().toUpperCase(),
+      amountXLM: normalizeAmountXLM(request.amountXLM),
+      asset: request.asset,
+      memo: (request.memo ?? quote.memo).slice(0, 28),
+      network: request.network,
+    };
+  } catch {
+    return {
+      ok: false,
+      status: 400,
+      error: PAYMENT_AMOUNT_ERROR,
+      field: "amountXLM",
+    };
+  }
 
   if (normalizedRequest.destination !== quote.destination) {
     return {

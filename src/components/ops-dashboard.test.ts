@@ -112,11 +112,11 @@ describe("OpsDashboard lastRefreshed feature", () => {
 
   const getHealth = () => states[0] as HealthState;
   const getMetrics = () => states[1] as MetricsState;
-  const getTxCount = () => states[2] as number | null;
-  const getError = () => states[4] as string | null;
-  const getLoading = () => states[5] as boolean;
-  const getTxLoading = () => states[6] as boolean;
-  const getLastRefreshed = () => states[7] as string | null;
+  const getTxCount = () => states[3] as number | null;
+  const getError = () => states[5] as string | null;
+  const getLoading = () => states[6] as boolean;
+  const getTxLoading = () => states[7] as boolean;
+  const getLastRefreshed = () => states[8] as string | null;
 
   function setupSuccessfulFetch() {
     fetchMock.mockImplementation((url: string) => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "@/lib/auth/require-auth";
 import { readJsonBody } from "@/lib/http/read-json-body";
+import { getProtectedPaymentFlowReadinessReport } from "@/lib/readiness/production";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { buildUnsignedPaymentTransaction } from "@/lib/stellar/client";
 import { verifyPaymentAgainstQuote } from "@/lib/stellar/verify-payment-quote";
@@ -28,6 +29,19 @@ export async function POST(request: NextRequest) {
 
     if (!auth.ok) {
       return auth.response;
+    }
+
+    const readinessReport = getProtectedPaymentFlowReadinessReport();
+    if (readinessReport) {
+      return NextResponse.json(
+        {
+          error:
+            "Protected payment flows are disabled until Fortexa passes the production readiness check.",
+          issues: readinessReport.issues,
+          command: "npm run check:production-readiness",
+        },
+        { status: 503, headers: rateLimitHeaders(rate) }
+      );
     }
 
     const userId = auth.session.userId;
