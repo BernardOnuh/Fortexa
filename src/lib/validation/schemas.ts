@@ -48,10 +48,12 @@ export const decisionRequestSchema = z
     scenarioId: z.string().min(1).max(120).optional(),
     action: agentActionSchema.optional(),
     approvedByHuman: z.boolean().optional(),
+    policyOverrides: z.record(z.string(), z.unknown()).optional(),
+    paymentQuote: paymentQuoteInputSchema.optional(),
     paymentQuoteInput: paymentQuoteInputSchema.optional(),
   })
-  .refine((data) => Boolean(data.scenarioId || data.action), {
-    message: "Either scenarioId or action is required.",
+  .refine((data) => Boolean(data.scenarioId || data.action || data.paymentQuote || data.paymentQuoteInput), {
+    message: "Either scenarioId, action, or paymentQuote must be provided.",
     path: ["scenarioId"],
   });
 
