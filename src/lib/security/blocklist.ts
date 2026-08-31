@@ -33,7 +33,8 @@ export function getBlocklistHealth(): BlocklistHealth {
   };
 }
 
-export async function fetchBlocklist(options?: { signal?: AbortSignal; throwOnError?: boolean }): Promise<string[]> {
+/** Fetch and cache the external blocklist. Returns [] on any failure. */
+export async function fetchBlocklist(): Promise<string[]> {
   const url = process.env.FORTEXA_BLOCKLIST_URL;
   if (!url) return [];
 
@@ -41,8 +42,7 @@ export async function fetchBlocklist(options?: { signal?: AbortSignal; throwOnEr
 
   try {
     const timeoutMs = getBlocklistTimeout();
-    const signal = options?.signal ?? AbortSignal.timeout(timeoutMs);
-    const res = await fetch(url, { signal });
+    const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const text = await res.text();
@@ -66,9 +66,7 @@ export async function fetchBlocklist(options?: { signal?: AbortSignal; throwOnEr
   } catch (err) {
     lastErrorSummary =
       err instanceof Error ? err.message : "Unknown fetch error";
-    if (options?.throwOnError) {
-      throw err;
-    }
+    throw err;
   }
 
   return cachedDomains;

@@ -67,8 +67,8 @@ vi.mock("@/lib/stellar/network-config", () => ({
   getStellarHorizonUrl: () => "https://horizon-testnet.stellar.org",
 }));
 
-vi.mock("@/lib/stellar/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/stellar/client")>("@/lib/stellar/client");
+vi.mock("@/lib/stellar/client", async (importOriginal) => {
+  const actual = await importOriginal();
   return {
     ...actual,
     submitSignedTransactionXdr: vi.fn(async () => ({
@@ -199,6 +199,10 @@ describe("POST /api/stellar/submit-signed - source wallet verification", () => {
 });
 
 describe("POST /api/stellar/submit-signed authorization", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("returns 401 when unauthenticated", async () => {
     vi.mocked(requireAuth).mockReturnValue({
       ok: false,
