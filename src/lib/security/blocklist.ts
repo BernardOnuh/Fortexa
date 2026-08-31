@@ -66,6 +66,7 @@ export async function fetchBlocklist(): Promise<string[]> {
   } catch (err) {
     lastErrorSummary =
       err instanceof Error ? err.message : "Unknown fetch error";
+    throw err;
   }
 
   return cachedDomains;
